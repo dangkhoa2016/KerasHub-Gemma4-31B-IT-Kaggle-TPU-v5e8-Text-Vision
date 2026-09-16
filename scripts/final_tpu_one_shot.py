@@ -436,15 +436,32 @@ def _write_memory_snapshot(path: Path, snapshot: dict[str, Any]) -> None:
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def _ensure_live_runtime(client, timeout: float = 1800.0) -> int:
+def _ensure_live_runtime(
+    client,
+    expected_sha: str,
+    timeout: float = 1800.0,
+) -> int:
     try:
         live_status, _live = client.get("/health/live")
         ready_status, ready = client.get("/health/ready")
-        if live_status == 200 and ready_status == 200 and ready.get("ready"):
+        info_status, info = client.get("/info")
+        runtime = info.get("runtime", {})
+        if (
+            live_status == 200
+            and ready_status == 200
+            and ready.get("ready")
+            and info_status == 200
+            and runtime.get("source_sha") == expected_sha
+        ):
             return 0
     except Exception:
         pass
 
+    subprocess.run(
+        ["bash", str(PROJECT_ROOT / "scripts" / "stop.sh")],
+        cwd=PROJECT_ROOT,
+        check=True,
+    )
     subprocess.run(
         ["bash", str(PROJECT_ROOT / "scripts" / "start.sh")],
         cwd=PROJECT_ROOT,
@@ -471,6 +488,7 @@ def run_g9(args: argparse.Namespace) -> int:
             Path(getattr(args, "repo", PROJECT_ROOT)),
             args.expected_sha,
         )
+    os.environ["FINAL_TPU_EXECUTION_SHA"] = args.expected_sha
     client = getattr(args, "client", None)
     model_reload_count = getattr(args, "model_reload_count", 0)
     if client is None:
@@ -482,7 +500,7 @@ def run_g9(args: argparse.Namespace) -> int:
             headers=headers,
             timeout=float(os.environ.get("REQUEST_TIMEOUT", "900")),
         )
-        model_reload_count = _ensure_live_runtime(client)
+        model_reload_count = _ensure_live_runtime(client, args.expected_sha)
 
     before_memory = read_cgroup_snapshot()
     runtime_identity_before = read_runtime_identity()
@@ -679,6 +697,7 @@ def run_g10(args: argparse.Namespace) -> int:
             Path(getattr(args, "repo", PROJECT_ROOT)),
             args.expected_sha,
         )
+    os.environ["FINAL_TPU_EXECUTION_SHA"] = args.expected_sha
     freshness_evidence = None
     checkpoint = getattr(args, "restart_checkpoint", None)
     if checkpoint is not None:
@@ -704,7 +723,7 @@ def run_g10(args: argparse.Namespace) -> int:
             headers=headers,
             timeout=float(os.environ.get("REQUEST_TIMEOUT", "900")),
         )
-        model_reload_count = _ensure_live_runtime(client)
+        model_reload_count = _ensure_live_runtime(client, args.expected_sha)
 
     before_memory = read_cgroup_snapshot()
     endpoint_results = {}

@@ -1,5 +1,5 @@
 from __future__ import annotations
-import logging, multiprocessing as mp, queue, threading, time, uuid
+import logging, multiprocessing as mp, os, queue, threading, time, uuid
 from pathlib import Path
 
 from ..core.errors import QueueFullError, WorkerNotReadyError
@@ -375,6 +375,7 @@ class GenerationManager:
             "model": "gemma4_instruct_31b",
             "backend": "jax",
             "accelerator": "TPU v5e-8",
+            "source_sha": os.environ.get("FINAL_TPU_EXECUTION_SHA"),
             "expected_tpu_devices": (
                 self.config.expected_tpu_devices
             ),
