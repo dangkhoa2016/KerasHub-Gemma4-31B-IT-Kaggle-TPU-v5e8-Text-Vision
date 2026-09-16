@@ -4,12 +4,22 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import argparse
+import base64
 import subprocess
+import sys
+import tempfile
 import time
 import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Any
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+SRC_ROOT = PROJECT_ROOT / "src"
+if str(SRC_ROOT) not in sys.path:
+    sys.path.insert(0, str(SRC_ROOT))
 
 
 OOM_KEYS = ("oom", "oom_kill", "oom_group_kill")
@@ -196,5 +206,375 @@ def package_evidence(directory: Path) -> Path:
     return sums_path
 
 
+class RestClient:
+    def __init__(
+        self,
+        base_url: str,
+        headers: dict[str, str],
+        timeout: float = 30.0,
+    ):
+        self.base_url = base_url
+        self.headers = headers
+        self.timeout = timeout
+
+    def get(self, path: str) -> tuple[int, dict[str, Any]]:
+        return request_json(
+            self.base_url,
+            path,
+            headers=self.headers,
+            timeout=self.timeout,
+        )
+
+    def post(self, path: str, payload: dict[str, Any]) -> tuple[int, dict[str, Any]]:
+        return request_json(
+            self.base_url,
+            path,
+            method="POST",
+            payload=payload,
+            headers=self.headers,
+            timeout=self.timeout,
+        )
+
+    def poll(self, job_id: str, timeout: float | None = None) -> dict[str, Any]:
+        return poll_job(
+            self.base_url,
+            job_id,
+            headers=self.headers,
+            timeout=timeout or self.timeout,
+        )
+
+
+def _write_json(path: Path, payload: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True, default=str) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _nonempty_output(payload: dict[str, Any]) -> bool:
+    return isinstance(payload.get("output"), str) and bool(payload["output"].strip())
+
+
+def _submit_and_poll(client, path: str, payload: dict[str, Any]) -> dict[str, Any]:
+    status_code, accepted = client.post(path, payload)
+    if status_code != 202 or not accepted.get("job_id"):
+        raise RuntimeError(f"async request was not accepted: {path} {status_code}")
+    result = client.poll(accepted["job_id"])
+    if result.get("status") != "completed" or not _nonempty_output(result):
+        raise RuntimeError(f"job did not complete with nonempty output: {result}")
+    return {
+        "request": payload,
+        "accepted": accepted,
+        "result": result,
+    }
+
+
+def run_text_acceptance(client, evidence_dir: Path, label: str) -> dict[str, Any]:
+    payload = {
+        "prompt": "hello",
+        "system": "",
+        "max_new_tokens": 1,
+    }
+    try:
+        record = _submit_and_poll(client, "/generate/async", payload)
+        result = {
+            "label": label,
+            "accepted": True,
+            "result_nonempty": True,
+            **record,
+        }
+    except Exception as exc:
+        result = {
+            "label": label,
+            "accepted": False,
+            "result_nonempty": False,
+            "error": repr(exc),
+        }
+    _write_json(evidence_dir / f"{label}.json", result)
+    return result
+
+
+def run_vision_acceptance(client, evidence_dir: Path, label: str) -> dict[str, Any]:
+    from gemma4_server.tpu.g5_vision import create_synthetic_fixture
+
+    try:
+        with tempfile.TemporaryDirectory(prefix="g9-vision-") as tmp:
+            fixture = Path(tmp) / "g5-fixture.png"
+            create_synthetic_fixture(fixture)
+            image_base64 = base64.b64encode(fixture.read_bytes()).decode("ascii")
+        payload = {
+            "prompt": "Describe the image.",
+            "system": "",
+            "max_new_tokens": 1,
+            "image_base64": image_base64,
+        }
+        record = _submit_and_poll(client, "/generate/image/async", payload)
+        metrics = record["result"].get("metrics") or {}
+        conditioning = metrics.get("vision_conditioning_present") is True
+        result = {
+            "label": label,
+            "accepted": conditioning,
+            "result_nonempty": True,
+            "vision_conditioning_present": conditioning,
+            **record,
+        }
+        if not conditioning:
+            result["error"] = "vision conditioning was not directly evidenced"
+    except Exception as exc:
+        result = {
+            "label": label,
+            "accepted": False,
+            "result_nonempty": False,
+            "vision_conditioning_present": False,
+            "error": repr(exc),
+        }
+    _write_json(evidence_dir / f"{label}.json", result)
+    return result
+
+
+def adjudicate_g9(rows: dict[str, Any]) -> dict[str, Any]:
+    normalized = dict(rows)
+    required = {
+        "prime": bool(rows.get("prime", rows.get("G9_PRIME") == "PASS")),
+        "hot_1": bool(rows.get("hot_1", rows.get("G9_HOT_1") == "PASS")),
+        "hot_2": bool(rows.get("hot_2", rows.get("G9_HOT_2") == "PASS")),
+        "hot_cache_reuse": bool(
+            rows.get("hot_cache_reuse", rows.get("G9_HOT_CACHE_REUSE", False))
+        ),
+        "compile_evidence": rows.get(
+            "compile_evidence", rows.get("G9_COMPILE_EVIDENCE", "FAIL")
+        ),
+        "text_semantic_acceptance": bool(
+            rows.get("text_semantic_acceptance", False)
+        ),
+        "vision_semantic_acceptance": bool(
+            rows.get("vision_semantic_acceptance", False)
+        ),
+        "rest_acceptance": bool(rows.get("rest_acceptance", False)),
+        "oom_delta": rows.get("oom_delta"),
+    }
+    passed = all(
+        (
+            required["prime"],
+            required["hot_1"],
+            required["hot_2"],
+            required["hot_cache_reuse"],
+            required["compile_evidence"] == "PASS",
+            required["text_semantic_acceptance"],
+            required["vision_semantic_acceptance"],
+            required["rest_acceptance"],
+            required["oom_delta"] == 0,
+        )
+    )
+    normalized.update(required)
+    normalized.update(
+        {
+            "G9_PRIME": "PASS" if required["prime"] else "FAIL",
+            "G9_HOT_1": "PASS" if required["hot_1"] else "FAIL",
+            "G9_HOT_2": "PASS" if required["hot_2"] else "FAIL",
+            "G9_HOT_CACHE_REUSE": required["hot_cache_reuse"],
+            "G9_COMPILE_EVIDENCE": required["compile_evidence"],
+            "G9_STATUS": "CLOSED/PASS" if passed else "OPEN/FAIL",
+        }
+    )
+    return normalized
+
+
+def _oom_delta(before: dict[str, Any], after: dict[str, Any]) -> int | str:
+    before_events = before.get("memory_events", {})
+    after_events = after.get("memory_events", {})
+    deltas = []
+    for key in OOM_KEYS:
+        if before_events.get(key) is None or after_events.get(key) is None:
+            return "NOT_AVAILABLE"
+        deltas.append(after_events[key] - before_events[key])
+    return sum(deltas)
+
+
+def _write_memory_snapshot(path: Path, snapshot: dict[str, Any]) -> None:
+    lines = [
+        f"memory.current={snapshot.get('memory_current')}",
+        f"memory.max={snapshot.get('memory_max')}",
+    ]
+    lines.extend(
+        f"{key}={value}"
+        for key, value in sorted(snapshot.get("memory_events", {}).items())
+    )
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _ensure_live_runtime(client, timeout: float = 1800.0) -> int:
+    try:
+        live_status, _live = client.get("/health/live")
+        ready_status, ready = client.get("/health/ready")
+        if live_status == 200 and ready_status == 200 and ready.get("ready"):
+            return 0
+    except Exception:
+        pass
+
+    subprocess.run(
+        ["bash", str(PROJECT_ROOT / "scripts" / "start.sh")],
+        cwd=PROJECT_ROOT,
+        check=True,
+    )
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            status_code, payload = client.get("/health/ready")
+            if status_code == 200 and payload.get("ready"):
+                return 1
+        except Exception:
+            pass
+        time.sleep(5)
+    raise TimeoutError("timed out waiting for production server readiness")
+
+
+def run_g9(args: argparse.Namespace) -> int:
+    evidence_dir = Path(args.evidence_dir)
+    evidence_dir.mkdir(parents=True, exist_ok=True)
+    source_identity = getattr(args, "source_identity", None)
+    if source_identity is None:
+        source_identity = assert_source_identity(
+            Path(getattr(args, "repo", PROJECT_ROOT)),
+            args.expected_sha,
+        )
+    client = getattr(args, "client", None)
+    model_reload_count = getattr(args, "model_reload_count", 0)
+    if client is None:
+        headers = {}
+        if os.environ.get("API_KEY"):
+            headers["Authorization"] = f"Bearer {os.environ['API_KEY']}"
+        client = RestClient(
+            os.environ.get("BASE_URL", "http://127.0.0.1:7860"),
+            headers=headers,
+            timeout=float(os.environ.get("REQUEST_TIMEOUT", "900")),
+        )
+        model_reload_count = _ensure_live_runtime(client)
+
+    before_memory = read_cgroup_snapshot()
+    endpoint_results = {}
+    try:
+        for path in ("/", "/health/live", "/health/ready", "/info"):
+            status_code, payload = client.get(path)
+            endpoint_results[path] = {
+                "http_status": status_code,
+                "payload": payload,
+                "pass": status_code == 200,
+            }
+        prime_payload = {
+            "prompt": "hello",
+            "system": "",
+            "max_new_tokens": 1,
+        }
+        prime = _submit_and_poll(client, "/generate/async", prime_payload)
+        hot1 = _submit_and_poll(client, "/generate/async", dict(prime_payload))
+        hot2 = _submit_and_poll(client, "/generate/async", dict(prime_payload))
+        prime_evidence = prime["result"].get("metrics", {}).get(
+            "compile_cache_evidence", {}
+        )
+        hot1_evidence = hot1["result"].get("metrics", {}).get(
+            "compile_cache_evidence", {}
+        )
+        hot2_evidence = hot2["result"].get("metrics", {}).get(
+            "compile_cache_evidence", {}
+        )
+        from gemma4_server.tpu.observability import adjudicate_hot_cache
+
+        cache_result = adjudicate_hot_cache(
+            prime_evidence,
+            hot1_evidence,
+            hot2_evidence,
+        )
+        text_result = run_text_acceptance(client, evidence_dir, "08-text-semantic")
+        vision_result = run_vision_acceptance(client, evidence_dir, "09-vision-semantic")
+        rest_acceptance = all(row["pass"] for row in endpoint_results.values()) and all(
+            result["result"]["status"] == "completed"
+            for result in (prime, hot1, hot2)
+        )
+        after_memory = read_cgroup_snapshot()
+        rows = {
+            "prime": _nonempty_output(prime["result"]),
+            "hot_1": _nonempty_output(hot1["result"]),
+            "hot_2": _nonempty_output(hot2["result"]),
+            "hot_cache_reuse": cache_result["hot_cache_reuse"],
+            "compile_evidence": cache_result["compile_evidence"],
+            "text_semantic_acceptance": text_result["accepted"],
+            "vision_semantic_acceptance": vision_result["accepted"],
+            "rest_acceptance": rest_acceptance,
+            "oom_delta": _oom_delta(before_memory, after_memory),
+        }
+    except Exception as exc:
+        after_memory = read_cgroup_snapshot()
+        prime = locals().get("prime", {})
+        hot1 = locals().get("hot1", {})
+        hot2 = locals().get("hot2", {})
+        text_result = locals().get("text_result", {"accepted": False})
+        vision_result = locals().get("vision_result", {"accepted": False})
+        cache_result = locals().get(
+            "cache_result",
+            {
+                "hot_cache_reuse": False,
+                "compile_evidence": "FAIL",
+            },
+        )
+        rows = {
+            "prime": False,
+            "hot_1": False,
+            "hot_2": False,
+            "hot_cache_reuse": cache_result.get("hot_cache_reuse", False),
+            "compile_evidence": cache_result.get("compile_evidence", "FAIL"),
+            "text_semantic_acceptance": text_result.get("accepted", False),
+            "vision_semantic_acceptance": vision_result.get("accepted", False),
+            "rest_acceptance": False,
+            "oom_delta": _oom_delta(before_memory, after_memory),
+            "error": repr(exc),
+        }
+    adjudication = adjudicate_g9(rows)
+    _write_json(evidence_dir / "00-context.txt", {
+        "source_identity": source_identity,
+        "model_reload_count": model_reload_count,
+    })
+    _write_json(evidence_dir / "01-source-runtime-identity.txt", read_runtime_identity())
+    _write_json(evidence_dir / "02-readiness.json", endpoint_results)
+    _write_json(evidence_dir / "03-prime-request.json", prime.get("request"))
+    _write_json(evidence_dir / "04-prime-result.json", prime.get("result"))
+    _write_json(evidence_dir / "05-hot1-result.json", hot1.get("result"))
+    _write_json(evidence_dir / "06-hot2-result.json", hot2.get("result"))
+    _write_json(evidence_dir / "07-cache-compile-evidence.json", cache_result)
+    _write_json(evidence_dir / "08-text-semantic.json", text_result)
+    _write_json(evidence_dir / "09-vision-semantic.json", vision_result)
+    (evidence_dir / "10-rest-acceptance.txt").write_text(
+        json.dumps(endpoint_results, indent=2, sort_keys=True, default=str) + "\n",
+        encoding="utf-8",
+    )
+    _write_memory_snapshot(evidence_dir / "11-memory-before.txt", before_memory)
+    _write_memory_snapshot(evidence_dir / "12-memory-after.txt", after_memory)
+    _write_json(evidence_dir / "13-g9-acceptance.json", adjudication)
+    (evidence_dir / "14-final-adjudication.txt").write_text(
+        "\n".join(f"{key}={value}" for key, value in sorted(adjudication.items())) + "\n",
+        encoding="utf-8",
+    )
+    package_evidence(evidence_dir)
+    print(f"G9_STATUS={adjudication['G9_STATUS']}")
+    return 0 if adjudication["G9_STATUS"] == "CLOSED/PASS" else 1
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--mode", choices=("g9",), required=True)
+    parser.add_argument("--expected-sha", required=True)
+    parser.add_argument("--evidence-dir", required=True, type=Path)
+    parser.add_argument("--repo", type=Path, default=PROJECT_ROOT)
+    return parser
+
+
+def main(argv=None) -> int:
+    args = _parser().parse_args(argv)
+    if args.mode == "g9":
+        return run_g9(args)
+    raise AssertionError(args.mode)
+
+
 if __name__ == "__main__":
-    raise SystemExit("orchestration modes are added in a later task")
+    raise SystemExit(main())
