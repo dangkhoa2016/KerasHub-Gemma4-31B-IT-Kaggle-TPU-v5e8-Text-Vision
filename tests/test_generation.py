@@ -222,3 +222,35 @@ class T(unittest.TestCase):
                 })
             ],
         )
+
+    def test_image_generation_metrics_expose_existing_vision_conditioning(self):
+        class Value:
+            def __init__(self, shape):
+                self.shape = shape
+
+        class FakePreprocessor:
+            def generate_preprocess(self, inputs, sequence_length):
+                return {
+                    "pixel_values": Value((1, 2520, 768)),
+                    "pixel_position_ids": Value((1, 2520, 2)),
+                    "vision_indices": Value((280,)),
+                    "vision_mask": [True] * 280 + [False] * 232,
+                    "padding_mask": [True] * sequence_length,
+                }
+
+        engine = Gemma4TPUEngine(
+            "/tmp/model",
+            "bfloat16",
+            object(),
+            generation_length_buckets=(16, 512),
+            max_generation_length=512,
+        )
+        engine.preprocessor = FakePreprocessor()
+
+        prompt_tokens = engine._preprocess_prompt_tokens(
+            {"prompts": "<|image|>", "images": object()},
+            sequence_length=512,
+        )
+
+        self.assertEqual(prompt_tokens, 512)
+        self.assertTrue(engine._last_vision_conditioning_present)
