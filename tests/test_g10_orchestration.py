@@ -6,6 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -136,7 +137,19 @@ class G10OrchestrationTests(unittest.TestCase):
                 expected_sha="b" * 40,
                 model_reload_count=1,
             )
-            result = run_g10(args)
+            with patch(
+                "final_tpu_one_shot.read_cgroup_snapshot",
+                return_value={
+                    "memory_current": 0,
+                    "memory_max": 1,
+                    "memory_events": {
+                        "oom": 0,
+                        "oom_kill": 0,
+                        "oom_group_kill": 0,
+                    },
+                },
+            ):
+                result = run_g10(args)
 
         self.assertEqual(result, 0)
         self.assertTrue(any(path == "/info" for _method, path in client.calls))
