@@ -288,7 +288,14 @@ def _nonempty_output(payload: dict[str, Any]) -> bool:
     return isinstance(payload.get("output"), str) and bool(payload["output"].strip())
 
 
-def _submit_and_poll(client, path: str, payload: dict[str, Any]) -> dict[str, Any]:
+def _submit_and_poll(
+    client,
+    path: str,
+    payload: dict[str, Any],
+    post_counter: list[int] | None = None,
+) -> dict[str, Any]:
+    if post_counter is not None:
+        post_counter[0] += 1
     status_code, accepted = client.post(path, payload)
     if status_code != 202 or not accepted.get("job_id"):
         raise RuntimeError(f"async request was not accepted: {path} {status_code}")
@@ -302,14 +309,24 @@ def _submit_and_poll(client, path: str, payload: dict[str, Any]) -> dict[str, An
     }
 
 
-def run_text_acceptance(client, evidence_dir: Path, label: str) -> dict[str, Any]:
+def run_text_acceptance(
+    client,
+    evidence_dir: Path,
+    label: str,
+    post_counter: list[int] | None = None,
+) -> dict[str, Any]:
     payload = {
         "prompt": "hello",
         "system": "",
         "max_new_tokens": 1,
     }
     try:
-        record = _submit_and_poll(client, "/generate/async", payload)
+        record = _submit_and_poll(
+            client,
+            "/generate/async",
+            payload,
+            post_counter,
+        )
         result = {
             "label": label,
             "accepted": True,
@@ -479,6 +496,73 @@ def _ensure_live_runtime(
     raise TimeoutError("timed out waiting for production server readiness")
 
 
+def pre_prime_authority_gate(
+    client,
+    expected_sha: str,
+) -> dict[str, Any]:
+    endpoint_results: dict[str, dict[str, Any]] = {}
+    runtime: dict[str, Any] = {}
+    runtime_contract: dict[str, Any] = {
+        "checks": {},
+        "passed": False,
+        "runtime": runtime,
+    }
+    error = None
+    try:
+        for path in ("/", "/health/live", "/health/ready", "/info"):
+            status_code, payload = client.get(path)
+            endpoint_results[path] = {
+                "http_status": status_code,
+                "payload": payload,
+                "pass": status_code == 200,
+            }
+            if path == "/health/ready":
+                endpoint_results[path]["pass"] = (
+                    status_code == 200 and payload.get("ready") is True
+                )
+            if path == "/info" and status_code == 200:
+                runtime = payload.get("runtime", {})
+                runtime_contract = _model_contract(runtime)
+    except Exception as exc:
+        error = f"{type(exc).__name__}: {exc}"
+
+    source_sha_match = runtime.get("source_sha") == expected_sha
+    checks = {
+        path: bool(result.get("pass"))
+        for path, result in endpoint_results.items()
+    }
+    checks["runtime.source_sha"] = source_sha_match
+    checks["frozen_runtime_contract"] = runtime_contract["passed"] is True
+    passed = not error and all(checks.values())
+    failed_checks = [name for name, check in checks.items() if not check]
+    if error:
+        failure_reason = error
+    elif failed_checks:
+        labels = [
+            "source SHA mismatch" if name == "runtime.source_sha" else name
+            for name in failed_checks
+        ]
+        failure_reason = "failed authority checks: " + ", ".join(labels)
+    else:
+        failure_reason = None
+    return {
+        "passed": passed,
+        "PRE_PRIME_AUTHORITY_GATE": "PASS" if passed else "FAIL",
+        "GENERATION_POST_COUNT": 0,
+        "generation_post_count": 0,
+        "checks": checks,
+        "endpoints": endpoint_results,
+        "source_sha": {
+            "expected": expected_sha,
+            "observed": runtime.get("source_sha"),
+            "match": source_sha_match,
+        },
+        "runtime_contract": runtime_contract["checks"],
+        "failure_reason": failure_reason,
+        "error": error,
+    }
+
+
 def run_g9(args: argparse.Namespace) -> int:
     evidence_dir = Path(args.evidence_dir)
     evidence_dir.mkdir(parents=True, exist_ok=True)
@@ -504,23 +588,69 @@ def run_g9(args: argparse.Namespace) -> int:
 
     before_memory = read_cgroup_snapshot()
     runtime_identity_before = read_runtime_identity()
-    endpoint_results = {}
-    try:
-        for path in ("/", "/health/live", "/health/ready", "/info"):
-            status_code, payload = client.get(path)
-            endpoint_results[path] = {
-                "http_status": status_code,
-                "payload": payload,
-                "pass": status_code == 200,
+    generation_post_counter = [0]
+    pre_prime_gate = pre_prime_authority_gate(client, args.expected_sha)
+    endpoint_results = pre_prime_gate["endpoints"]
+    if not pre_prime_gate["passed"]:
+        after_memory = read_cgroup_snapshot()
+        adjudication = adjudicate_g9(
+            {
+                "prime": False,
+                "hot_1": False,
+                "hot_2": False,
+                "hot_cache_reuse": False,
+                "compile_evidence": "FAIL",
+                "text_semantic_acceptance": False,
+                "vision_semantic_acceptance": False,
+                "rest_acceptance": False,
+                "oom_delta": _oom_delta(before_memory, after_memory),
             }
+        )
+        adjudication.update(
+            {
+                "PRE_PRIME_AUTHORITY_GATE": "FAIL",
+                "GENERATION_POST_COUNT": 0,
+            }
+        )
+        _write_json(evidence_dir / "00-context.txt", {
+            "source_identity": source_identity,
+            "model_reload_count": model_reload_count,
+            "runtime_identity_before": runtime_identity_before,
+        })
+        _write_json(evidence_dir / "00-pre-prime-authority-gate.json", pre_prime_gate)
+        _write_json(evidence_dir / "01-source-runtime-identity.txt", {
+            "runtime_identity_before": runtime_identity_before,
+            "runtime_identity_after": read_runtime_identity(),
+        })
+        _write_json(evidence_dir / "02-readiness.json", endpoint_results)
+        _write_json(evidence_dir / "13-g9-acceptance.json", adjudication)
+        (evidence_dir / "14-final-adjudication.txt").write_text(
+            "\n".join(
+                f"{key}={value}" for key, value in sorted(adjudication.items())
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        package_evidence(evidence_dir)
+        print("PRE_PRIME_AUTHORITY_GATE=FAIL")
+        print("GENERATION_POST_COUNT=0")
+        print(f"G9_STATUS={adjudication['G9_STATUS']}")
+        return 1
+    try:
         prime_payload = {
             "prompt": "hello",
             "system": "",
             "max_new_tokens": 1,
         }
-        prime = _submit_and_poll(client, "/generate/async", prime_payload)
-        hot1 = _submit_and_poll(client, "/generate/async", dict(prime_payload))
-        hot2 = _submit_and_poll(client, "/generate/async", dict(prime_payload))
+        prime = _submit_and_poll(
+            client, "/generate/async", prime_payload, generation_post_counter
+        )
+        hot1 = _submit_and_poll(
+            client, "/generate/async", dict(prime_payload), generation_post_counter
+        )
+        hot2 = _submit_and_poll(
+            client, "/generate/async", dict(prime_payload), generation_post_counter
+        )
         prime_evidence = prime["result"].get("metrics", {}).get(
             "compile_cache_evidence", {}
         )
@@ -537,7 +667,12 @@ def run_g9(args: argparse.Namespace) -> int:
             hot1_evidence,
             hot2_evidence,
         )
-        text_result = run_text_acceptance(client, evidence_dir, "08-text-semantic")
+        text_result = run_text_acceptance(
+            client,
+            evidence_dir,
+            "08-text-semantic",
+            generation_post_counter,
+        )
         vision_result = run_vision_acceptance(client, evidence_dir, "09-vision-semantic")
         rest_acceptance = all(row["pass"] for row in endpoint_results.values()) and all(
             result["result"]["status"] == "completed"
@@ -554,6 +689,8 @@ def run_g9(args: argparse.Namespace) -> int:
             "vision_semantic_acceptance": vision_result["accepted"],
             "rest_acceptance": rest_acceptance,
             "oom_delta": _oom_delta(before_memory, after_memory),
+            "PRE_PRIME_AUTHORITY_GATE": "PASS",
+            "GENERATION_POST_COUNT": generation_post_counter[0],
         }
     except Exception as exc:
         after_memory = read_cgroup_snapshot()
@@ -580,6 +717,8 @@ def run_g9(args: argparse.Namespace) -> int:
             "rest_acceptance": False,
             "oom_delta": _oom_delta(before_memory, after_memory),
             "error": repr(exc),
+            "PRE_PRIME_AUTHORITY_GATE": "PASS",
+            "GENERATION_POST_COUNT": generation_post_counter[0],
         }
     adjudication = adjudicate_g9(rows)
     _write_json(evidence_dir / "00-context.txt", {

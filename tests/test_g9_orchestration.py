@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import json
 import sys
 import tempfile
 import unittest
@@ -13,6 +14,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from final_tpu_one_shot import (  # noqa: E402
     adjudicate_g9,
+    pre_prime_authority_gate,
     run_g9,
     run_text_acceptance,
     run_vision_acceptance,
@@ -20,10 +22,11 @@ from final_tpu_one_shot import (  # noqa: E402
 
 
 class FakeClient:
-    def __init__(self):
+    def __init__(self, info_status=200):
         self.calls = []
         self.posts = []
         self.jobs = {}
+        self.info_status = info_status
 
     def get(self, path):
         self.calls.append(("GET", path, None))
@@ -32,12 +35,25 @@ class FakeClient:
         if path == "/health/ready":
             return 200, {"ready": True, "state": "ready"}
         if path == "/info":
-            return 200, {
+            return self.info_status, {
                 "runtime": {
                     "model": "gemma4_instruct_31b",
                     "backend": "jax",
+                    "jax_default_backend": "tpu",
                     "accelerator": "TPU v5e-8",
+                    "device_count": 8,
                     "expected_tpu_devices": 8,
+                    "mesh": [1, 8],
+                    "mesh_axis_names": ["batch", "model"],
+                    "dtype": "bfloat16",
+                    "model_class": "Gemma4CausalLM",
+                    "backbone_class": "Gemma4Backbone",
+                    "strict_weight_loading": True,
+                    "skip_mismatch": False,
+                    "layout_profile": "gemma4_31b_dense_candidate_a_v1",
+                    "checkpoint_load_strategy": "keras_hub_native_preset_loader",
+                    "candidate_a_verified": True,
+                    "source_sha": "a" * 40,
                 }
             }
         if path == "/":
@@ -89,6 +105,51 @@ class FakeClient:
 
 
 class G9OrchestrationTests(unittest.TestCase):
+    def test_pre_prime_gate_requires_authenticated_info(self):
+        client = FakeClient(info_status=401)
+
+        result = pre_prime_authority_gate(client, "a" * 40)
+
+        self.assertFalse(result["passed"])
+        self.assertFalse(result["checks"]["/info"])
+        self.assertEqual(result["generation_post_count"], 0)
+        self.assertEqual([path for path, _payload in client.posts], [])
+
+    def test_pre_prime_gate_rejects_source_sha_mismatch(self):
+        client = FakeClient()
+
+        result = pre_prime_authority_gate(client, "b" * 40)
+
+        self.assertFalse(result["passed"])
+        self.assertFalse(result["source_sha"]["match"])
+        self.assertIn("source SHA", result["failure_reason"])
+
+    def test_run_g9_stops_before_generation_when_info_is_unauthorized(self):
+        client = FakeClient(info_status=401)
+        with tempfile.TemporaryDirectory() as tmp:
+            args = SimpleNamespace(
+                client=client,
+                evidence_dir=Path(tmp),
+                source_identity={
+                    "head": "a" * 40,
+                    "expected_sha": "a" * 40,
+                    "git_sha_exact": True,
+                    "worktree_clean": True,
+                },
+                expected_sha="a" * 40,
+                model_reload_count=0,
+            )
+            result = run_g9(args)
+            evidence = json.loads(
+                Path(tmp, "00-pre-prime-authority-gate.json").read_text()
+            )
+
+        self.assertEqual(result, 1)
+        self.assertFalse(evidence["passed"])
+        self.assertEqual(evidence["PRE_PRIME_AUTHORITY_GATE"], "FAIL")
+        self.assertEqual(evidence["GENERATION_POST_COUNT"], 0)
+        self.assertEqual([path for path, _payload in client.posts], [])
+
     def test_adjudication_requires_all_mandatory_rows(self):
         passed = adjudicate_g9(
             {
