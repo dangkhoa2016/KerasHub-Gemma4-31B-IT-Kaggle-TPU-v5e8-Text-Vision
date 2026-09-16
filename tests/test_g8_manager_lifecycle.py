@@ -482,6 +482,31 @@ class ManagerLifecycleTests(unittest.TestCase):
         self.assertEqual(health["state"], "unavailable")
         self.assertFalse(health["ready"])
 
+    def test_health_exposes_ready_worker_model_metadata_for_fresh_acceptance(self):
+        self.manager._generation = 4
+        self.manager._worker_status[self.manager.WORKER_ID] = {
+            "worker_id": self.manager.WORKER_ID,
+            "generation": 4,
+            "state": "ready",
+            "metadata": {
+                "device_count": 8,
+                "model_class": "Gemma4CausalLM",
+                "backbone_class": "Gemma4Backbone",
+                "dtype": "bfloat16",
+                "strict_weight_loading": True,
+                "skip_mismatch": False,
+                "layout_profile": "gemma4_31b_dense_candidate_a_v1",
+                "checkpoint_load_strategy": "keras_hub_native_preset_loader",
+                "candidate_a_verified": True,
+            },
+        }
+
+        runtime = self.manager.health()["runtime"]
+
+        self.assertEqual(runtime["model_class"], "Gemma4CausalLM")
+        self.assertEqual(runtime["backbone_class"], "Gemma4Backbone")
+        self.assertTrue(runtime["candidate_a_verified"])
+
     def test_restart_joins_old_worker_before_new_start(self):
         self.install_existing_worker()
         self.install_start_fake()

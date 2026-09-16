@@ -53,7 +53,39 @@ def read_runtime_identity() -> dict[str, str | None]:
         hostname_path=Path("/etc/hostname"),
         boot_id_path=Path("/proc/sys/kernel/random/boot_id"),
         pid1_path=Path("/proc/1/stat"),
-    ) | {"pid": str(os.getpid())}
+    ) | {
+        "pid": str(os.getpid()),
+        "jupyter_parent_pid": os.environ.get("JPY_PARENT_PID"),
+    }
+
+
+def session_fresh_from_checkpoint(path: Path) -> tuple[bool, dict[str, Any]]:
+    """Compare current runtime identity with the pre-restart G9 checkpoint."""
+    checkpoint = json.loads(path.read_text(encoding="utf-8"))
+    baseline = checkpoint.get("runtime_identity_before", checkpoint)
+    current = read_runtime_identity()
+    comparable = (
+        "boot_id",
+        "hostname",
+        "pid1",
+        "jupyter_parent_pid",
+    )
+    changed = {
+        key: {
+            "before": baseline.get(key),
+            "after": current.get(key),
+        }
+        for key in comparable
+        if baseline.get(key) is not None
+        and current.get(key) is not None
+        and baseline.get(key) != current.get(key)
+    }
+    return bool(changed), {
+        "checkpoint": str(path),
+        "runtime_identity_before": baseline,
+        "runtime_identity_after": current,
+        "changed_fields": changed,
+    }
 
 
 def _read_int(path: Path) -> int | str | None:
@@ -265,7 +297,7 @@ def _submit_and_poll(client, path: str, payload: dict[str, Any]) -> dict[str, An
         raise RuntimeError(f"job did not complete with nonempty output: {result}")
     return {
         "request": payload,
-        "accepted": accepted,
+        "accepted_response": accepted,
         "result": result,
     }
 
@@ -453,6 +485,7 @@ def run_g9(args: argparse.Namespace) -> int:
         model_reload_count = _ensure_live_runtime(client)
 
     before_memory = read_cgroup_snapshot()
+    runtime_identity_before = read_runtime_identity()
     endpoint_results = {}
     try:
         for path in ("/", "/health/live", "/health/ready", "/info"):
@@ -534,8 +567,12 @@ def run_g9(args: argparse.Namespace) -> int:
     _write_json(evidence_dir / "00-context.txt", {
         "source_identity": source_identity,
         "model_reload_count": model_reload_count,
+        "runtime_identity_before": runtime_identity_before,
     })
-    _write_json(evidence_dir / "01-source-runtime-identity.txt", read_runtime_identity())
+    _write_json(evidence_dir / "01-source-runtime-identity.txt", {
+        "runtime_identity_before": runtime_identity_before,
+        "runtime_identity_after": read_runtime_identity(),
+    })
     _write_json(evidence_dir / "02-readiness.json", endpoint_results)
     _write_json(evidence_dir / "03-prime-request.json", prime.get("request"))
     _write_json(evidence_dir / "04-prime-result.json", prime.get("result"))
@@ -560,12 +597,224 @@ def run_g9(args: argparse.Namespace) -> int:
     return 0 if adjudication["G9_STATUS"] == "CLOSED/PASS" else 1
 
 
+def _model_contract(runtime: dict[str, Any]) -> dict[str, Any]:
+    checks = {
+        "model_preset": runtime.get("model") == "gemma4_instruct_31b",
+        "backend": runtime.get("backend") == "jax",
+        "jax_default_backend": runtime.get("jax_default_backend") == "tpu",
+        "accelerator": runtime.get("accelerator") == "TPU v5e-8",
+        "dtype": runtime.get("dtype") == "bfloat16",
+        "model_class": runtime.get("model_class") == "Gemma4CausalLM",
+        "backbone_class": runtime.get("backbone_class") == "Gemma4Backbone",
+        "strict_weight_loading": runtime.get("strict_weight_loading") is True,
+        "skip_mismatch": runtime.get("skip_mismatch") is False,
+        "layout_profile": runtime.get("layout_profile")
+        == "gemma4_31b_dense_candidate_a_v1",
+        "checkpoint_load_strategy": runtime.get("checkpoint_load_strategy")
+        == "keras_hub_native_preset_loader",
+        "candidate_a_verified": runtime.get("candidate_a_verified") is True,
+    }
+    return {
+        "checks": checks,
+        "passed": all(checks.values()),
+        "runtime": runtime,
+    }
+
+
+def adjudicate_g10(rows: dict[str, Any]) -> dict[str, Any]:
+    normalized = dict(rows)
+    required = {
+        "session_fresh": bool(rows.get("session_fresh", False)),
+        "git_sha_exact": bool(rows.get("git_sha_exact", False)),
+        "tpu_device_count": rows.get("tpu_device_count"),
+        "model_load": bool(rows.get("model_load", False)),
+        "text_acceptance": bool(rows.get("text_acceptance", False)),
+        "vision_acceptance": bool(rows.get("vision_acceptance", False)),
+        "rest_lifecycle_acceptance": bool(
+            rows.get("rest_lifecycle_acceptance", False)
+        ),
+        "oom_delta": rows.get("oom_delta"),
+        "evidence_packaged": bool(rows.get("evidence_packaged", False)),
+    }
+    passed = all(
+        (
+            required["session_fresh"],
+            required["git_sha_exact"],
+            required["tpu_device_count"] == 8,
+            required["model_load"],
+            required["text_acceptance"],
+            required["vision_acceptance"],
+            required["rest_lifecycle_acceptance"],
+            required["oom_delta"] == 0,
+            required["evidence_packaged"],
+        )
+    )
+    normalized.update(required)
+    normalized["G10_STATUS"] = "CLOSED/PASS" if passed else "OPEN/FAIL"
+    normalized["G10_SESSION_FRESH"] = required["session_fresh"]
+    normalized["G10_GIT_SHA_EXACT"] = required["git_sha_exact"]
+    normalized["G10_TPU_DEVICE_COUNT"] = required["tpu_device_count"]
+    normalized["G10_MODEL_LOAD"] = "PASS" if required["model_load"] else "FAIL"
+    normalized["G10_TEXT_ACCEPTANCE"] = (
+        "PASS" if required["text_acceptance"] else "FAIL"
+    )
+    normalized["G10_VISION_ACCEPTANCE"] = (
+        "PASS" if required["vision_acceptance"] else "FAIL"
+    )
+    normalized["G10_REST_LIFECYCLE_ACCEPTANCE"] = (
+        "PASS"
+        if required["rest_lifecycle_acceptance"]
+        else "FAIL"
+    )
+    normalized["EVIDENCE_PACKAGED"] = required["evidence_packaged"]
+    return normalized
+
+
+def run_g10(args: argparse.Namespace) -> int:
+    evidence_dir = Path(args.evidence_dir)
+    evidence_dir.mkdir(parents=True, exist_ok=True)
+    source_identity = getattr(args, "source_identity", None)
+    if source_identity is None:
+        source_identity = assert_source_identity(
+            Path(getattr(args, "repo", PROJECT_ROOT)),
+            args.expected_sha,
+        )
+    freshness_evidence = None
+    checkpoint = getattr(args, "restart_checkpoint", None)
+    if checkpoint is not None:
+        session_fresh, freshness_evidence = session_fresh_from_checkpoint(
+            Path(checkpoint)
+        )
+    else:
+        session_fresh = bool(
+            getattr(
+                args,
+                "session_fresh",
+                os.environ.get("G10_SESSION_FRESH", "false").lower() == "true",
+            )
+        )
+    client = getattr(args, "client", None)
+    model_reload_count = getattr(args, "model_reload_count", 0)
+    if client is None:
+        headers = {}
+        if os.environ.get("API_KEY"):
+            headers["Authorization"] = f"Bearer {os.environ['API_KEY']}"
+        client = RestClient(
+            os.environ.get("BASE_URL", "http://127.0.0.1:7860"),
+            headers=headers,
+            timeout=float(os.environ.get("REQUEST_TIMEOUT", "900")),
+        )
+        model_reload_count = _ensure_live_runtime(client)
+
+    before_memory = read_cgroup_snapshot()
+    endpoint_results = {}
+    model_load = {"passed": False, "checks": {}}
+    text_result: dict[str, Any] = {"accepted": False}
+    vision_result: dict[str, Any] = {"accepted": False}
+    error = None
+    try:
+        for path in ("/", "/health/live", "/health/ready", "/info"):
+            status_code, payload = client.get(path)
+            endpoint_results[path] = {
+                "http_status": status_code,
+                "payload": payload,
+                "pass": status_code == 200,
+            }
+        info_runtime = endpoint_results["/info"]["payload"].get("runtime", {})
+        model_load = _model_contract(info_runtime)
+        text_result = run_text_acceptance(client, evidence_dir, "06-text-acceptance")
+        vision_result = run_vision_acceptance(client, evidence_dir, "07-vision-acceptance")
+        rest_lifecycle = all(
+            row["pass"] for row in endpoint_results.values()
+        ) and text_result["accepted"] and vision_result["accepted"]
+        device_count = info_runtime.get("device_count")
+        if device_count is None:
+            device_count = info_runtime.get("expected_tpu_devices")
+        rows = {
+            "session_fresh": session_fresh,
+            "git_sha_exact": source_identity.get("git_sha_exact") is True
+            and source_identity.get("worktree_clean") is True,
+            "tpu_device_count": device_count,
+            "model_load": model_load["passed"],
+            "text_acceptance": text_result["accepted"],
+            "vision_acceptance": vision_result["accepted"],
+            "rest_lifecycle_acceptance": rest_lifecycle,
+            "oom_delta": _oom_delta(before_memory, read_cgroup_snapshot()),
+        }
+    except Exception as exc:
+        error = repr(exc)
+        rows = {
+            "session_fresh": session_fresh,
+            "git_sha_exact": source_identity.get("git_sha_exact") is True
+            and source_identity.get("worktree_clean") is True,
+            "tpu_device_count": None,
+            "model_load": False,
+            "text_acceptance": text_result["accepted"],
+            "vision_acceptance": vision_result["accepted"],
+            "rest_lifecycle_acceptance": False,
+            "oom_delta": _oom_delta(before_memory, read_cgroup_snapshot()),
+        }
+    after_memory = read_cgroup_snapshot()
+    rows["oom_delta"] = _oom_delta(before_memory, after_memory)
+    rows["evidence_packaged"] = True
+    rows["error"] = error
+    adjudication = adjudicate_g10(rows)
+    _write_json(
+        evidence_dir / "00-context.txt",
+        {
+            "source_identity": source_identity,
+            "session_fresh": session_fresh,
+            "model_reload_count": model_reload_count,
+            "freshness_evidence": freshness_evidence,
+        },
+    )
+    _write_json(
+        evidence_dir / "01-fresh-session-identity.txt",
+        freshness_evidence or read_runtime_identity(),
+    )
+    _write_json(evidence_dir / "02-git-provenance.txt", source_identity)
+    _write_json(
+        evidence_dir / "03-tpu-topology.txt",
+        {
+            "device_count": rows.get("tpu_device_count"),
+            "runtime": endpoint_results.get("/info", {}).get("payload", {}).get("runtime", {}),
+        },
+    )
+    _write_json(evidence_dir / "04-model-load.json", model_load)
+    _write_json(
+        evidence_dir / "05-sharding.json",
+        {
+            "candidate_a_verified": model_load.get("runtime", {}).get(
+                "candidate_a_verified"
+            ),
+            "layout_profile": model_load.get("runtime", {}).get("layout_profile"),
+        },
+    )
+    _write_json(evidence_dir / "06-text-acceptance.json", text_result)
+    _write_json(evidence_dir / "07-vision-acceptance.json", vision_result)
+    (evidence_dir / "08-rest-lifecycle.txt").write_text(
+        json.dumps(endpoint_results, indent=2, sort_keys=True, default=str) + "\n",
+        encoding="utf-8",
+    )
+    _write_memory_snapshot(evidence_dir / "09-memory-before.txt", before_memory)
+    _write_memory_snapshot(evidence_dir / "10-memory-after.txt", after_memory)
+    _write_json(evidence_dir / "11-g10-acceptance.json", adjudication)
+    (evidence_dir / "12-final-adjudication.txt").write_text(
+        "\n".join(f"{key}={value}" for key, value in sorted(adjudication.items())) + "\n",
+        encoding="utf-8",
+    )
+    package_evidence(evidence_dir)
+    print(f"G10_STATUS={adjudication['G10_STATUS']}")
+    return 0 if adjudication["G10_STATUS"] == "CLOSED/PASS" else 1
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", choices=("g9",), required=True)
+    parser.add_argument("--mode", choices=("g9", "g10"), required=True)
     parser.add_argument("--expected-sha", required=True)
     parser.add_argument("--evidence-dir", required=True, type=Path)
     parser.add_argument("--repo", type=Path, default=PROJECT_ROOT)
+    parser.add_argument("--restart-checkpoint", type=Path)
     return parser
 
 
@@ -573,7 +822,7 @@ def main(argv=None) -> int:
     args = _parser().parse_args(argv)
     if args.mode == "g9":
         return run_g9(args)
-    raise AssertionError(args.mode)
+    return run_g10(args)
 
 
 if __name__ == "__main__":

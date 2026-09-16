@@ -268,6 +268,7 @@ class Gemma4TPUEngine:
                 keras_hub, "__version__", "unknown"
             ),
             "jax_version": getattr(jax, "__version__", "unknown"),
+            "jax_default_backend": jax.default_backend(),
             "device_count": len(jax.devices("tpu")),
             "devices": [str(d) for d in jax.devices("tpu")],
             "strict_weight_loading": True,
@@ -277,6 +278,7 @@ class Gemma4TPUEngine:
             "task_config_present": task_config.is_file(),
             "weights_entry": str(entry),
             "layout_profile": LAYOUT_PROFILE,
+            "candidate_a_verified": True,
             "generation_mode": "keras_hub_native_unvalidated",
             "runtime_validation": "NOT_YET_PROVEN",
             **sharding,
@@ -365,7 +367,9 @@ class Gemma4TPUEngine:
             "generation_seconds": round(elapsed, 6),
             "generation_mode": "keras_hub_native_unvalidated",
             "compile_cache_evidence": compilation_capture.snapshot(),
-            "vision_conditioning_present": self._last_vision_conditioning_present,
+            "vision_conditioning_present": getattr(
+                self, "_last_vision_conditioning_present", None
+            ),
             "authority_generation_path": (
                 "EXACT_LENGTH_AUTHORITY_PATH" if authority else None
             ),
