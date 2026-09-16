@@ -142,10 +142,8 @@ class G4SplitContractTests(unittest.TestCase):
         self.assertIn("if self.thread.is_alive()", source)
 
     def test_native_baseline_reads_frozen_g3_archive(self):
-        archive = Path(
-            "/kaggle/working/"
-            "gemma4-31b-vnext-g3-authority-20260913T225039Z.tar.gz"
-        )
+        archive = ROOT / "artifacts/g3/gemma4-31b-vnext-g3-authority-20260913T225039Z.tar.gz"
+        self.assertTrue(archive.is_file())
 
         result = native_baseline_from_archive(archive)
 
