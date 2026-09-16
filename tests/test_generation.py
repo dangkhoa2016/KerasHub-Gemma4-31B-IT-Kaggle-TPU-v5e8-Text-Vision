@@ -8,6 +8,7 @@ if str(ROOT/"src") not in sys.path:
     sys.path.insert(0,str(ROOT/"src"))
 
 import unittest
+from unittest.mock import patch
 import gemma4_server.core.config as config_module
 from gemma4_server.tpu.generation import (
     chat_prompt,
@@ -154,3 +155,70 @@ class T(unittest.TestCase):
     def test_authority_plan_rejects_length_over_maximum(self):
         with self.assertRaises(ValueError):
             plan_authority_generation(2048, 1, 2048)
+
+    def test_generate_exposes_compile_evidence_without_changing_native_call(self):
+        class FakePreprocessor:
+            pass
+
+        class FakeModel:
+            def __init__(self):
+                self.calls = []
+
+            def generate(self, *args, **kwargs):
+                self.calls.append((args, kwargs))
+                return object()
+
+        class FakeCapture:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc_value, traceback):
+                return False
+
+            def snapshot(self):
+                return {
+                    "source": "jax_logging",
+                    "available": True,
+                    "events": [],
+                    "compile_event_count": 0,
+                    "compile_seconds": 0.0,
+                    "persistent_cache_hits": 0,
+                    "persistent_cache_misses": 0,
+                    "status": "direct",
+                    "error": None,
+                }
+
+        engine = Gemma4TPUEngine(
+            "/tmp/model",
+            "bfloat16",
+            object(),
+            generation_length_buckets=(16, 512),
+            max_generation_length=512,
+        )
+        engine.model = FakeModel()
+        engine.preprocessor = FakePreprocessor()
+
+        with patch.object(
+            engine,
+            "_preprocess_prompt_tokens",
+            return_value=10,
+        ), patch(
+            "gemma4_server.tpu.engine.scalar_text",
+            return_value="done",
+        ), patch(
+            "gemma4_server.tpu.observability.CompilationEvidenceCapture",
+            return_value=FakeCapture(),
+        ):
+            result, metrics = engine._generate("hello", 1)
+
+        self.assertEqual(result, "done")
+        self.assertEqual(metrics["compile_cache_evidence"]["status"], "direct")
+        self.assertEqual(
+            engine.model.calls,
+            [
+                (("hello",), {
+                    "max_length": 16,
+                    "strip_prompt": True,
+                })
+            ],
+        )

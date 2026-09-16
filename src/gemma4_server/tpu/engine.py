@@ -319,12 +319,15 @@ class Gemma4TPUEngine:
                 self.buckets,
                 self.max_generation_length,
             )
+        from .observability import CompilationEvidenceCapture
+
         started = time.perf_counter()
-        output = self.model.generate(
-            inputs,
-            max_length=plan.max_length,
-            strip_prompt=True,
-        )
+        with CompilationEvidenceCapture() as compilation_capture:
+            output = self.model.generate(
+                inputs,
+                max_length=plan.max_length,
+                strip_prompt=True,
+            )
         elapsed = time.perf_counter() - started
         return scalar_text(output).strip(), {
             "prompt_tokens": prompt_tokens,
@@ -334,6 +337,7 @@ class Gemma4TPUEngine:
             "bucketed": plan.bucketed,
             "generation_seconds": round(elapsed, 6),
             "generation_mode": "keras_hub_native_unvalidated",
+            "compile_cache_evidence": compilation_capture.snapshot(),
             "authority_generation_path": (
                 "EXACT_LENGTH_AUTHORITY_PATH" if authority else None
             ),
