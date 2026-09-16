@@ -109,7 +109,7 @@ b77891e41840b49975e24c8d602d5f077a2381a4a7370c963f5aa0e5e0681088  ./docs/superpo
 562d82121c132b96edeb43236d38169a9b702201d2ec99e8863ab7bd750ff336  ./notebooks/kaggle-tpu-v5e8-final-run-all.ipynb
 b947616548b430e1171f0cae440e05edb0681526a1588c52ae039d9a190b073d  ./notebooks/kaggle-tpu-v5e8-g0-g2.ipynb
 0ac246368af7c90e557e8239e7ee8eeaf4a056836e7d67c431e5fe9f0367d909  ./notebooks/kaggle-tpu-v5e8-g3.ipynb
-4fe55c72737c617f3f45ede7a620b4dac8c9dcc3414ae810d6e93a3bb0d644a5  ./requirements-ci.txt
+4d17a29556f54f515f0ff838db246046c55a56c0665f521148d8ec544b057194  ./requirements-ci.txt
 b8bf1f1f1dfcb4b54c3b96928c9bed1881f7122e23fd72c8e189cabfc0acd8a3  ./requirements-tpu-g3.txt
 dd97bb8d30e61c36460e30075a26a233cdaf7174ac7d77ade69bedfb1a2b8dee  ./requirements.txt
 a9cea608ff7b5f1a2364b85683829cc3ba72f76f2cc4a9a07a96bdaa88489ddb  ./scripts/_common.sh
