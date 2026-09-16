@@ -18,7 +18,11 @@ from gemma4_server.tpu.observability import (  # noqa: E402
 
 
 class CompilationEvidenceCaptureTests(unittest.TestCase):
-    def test_captures_compile_event_and_removes_handler(self):
+    @patch(
+        "gemma4_server.tpu.observability.enable_jax_compile_logging",
+        return_value={"enabled": True, "status": "direct", "error": None},
+    )
+    def test_captures_compile_event_and_removes_handler(self, _enable_logging):
         logger = logging.getLogger("test-jax")
         capture = CompilationEvidenceCapture(logger_names=("test-jax",))
 
