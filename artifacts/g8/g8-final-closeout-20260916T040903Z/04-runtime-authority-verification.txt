@@ -1,0 +1,32 @@
+RUNTIME AUTHORITY VERIFICATION
+
+TPU_RUNTIME_REQUALIFIED=true
+JAX_DEVICE_COUNT=8
+JAX_DEFAULT_BACKEND=tpu
+TPU_TOPOLOGY=TPU v5e-8
+MODEL_LOAD=PASS
+PRODUCTION_READINESS=PASS
+READY_WORKERS=1
+WORKER_ID=tpu-0
+WORKER_STATE=ready
+
+Runtime metadata from the existing sidecar:
+accelerator=TPU v5e-8
+backend=jax
+expected_tpu_devices=8
+model=gemma4_instruct_31b
+model_class=Gemma4CausalLM
+backbone_class=Gemma4Backbone
+dtype=bfloat16
+mesh=[1,8]
+layout_profile=gemma4_31b_dense_candidate_a_v1
+checkpoint_load_strategy=keras_hub_native_preset_loader
+generation_mode=keras_hub_native_unvalidated
+runtime_validation=NOT_YET_PROVEN
+
+`layout_profile` and `checkpoint_load_strategy` are separate fields and are
+not conflated by this adjudication. Historical metadata strings are retained
+verbatim.
+
+Evidence:
+/kaggle/working/KerasHub-Gemma4-31B-IT-Kaggle-TPU-v5e8-Text-Vision/artifacts/g8/post-fix-closeout-20260916/runtime-evidence.json

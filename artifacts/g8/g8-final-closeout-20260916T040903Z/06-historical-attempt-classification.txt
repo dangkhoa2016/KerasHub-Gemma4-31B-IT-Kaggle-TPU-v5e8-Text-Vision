@@ -1,0 +1,25 @@
+HISTORICAL ATTEMPTS ARE PRESERVED
+
+The final success does not erase earlier failures. The retained evidence
+continues to classify the project history as follows:
+
+1. Historical G8 live attempt #1 = FAIL_TIMEOUT; the old generation bucket
+   was effectively 512.
+2. Historical G8 live attempt #2 = FAIL_PREFLIGHT.
+3. Fresh restart/recovery JAX probes = timeout/failure.
+4. Fresh-allocation fast-track JAX probe = FAIL/TIMEOUT.
+5. Later same-session corrective recovery requalified the TPU runtime, loaded
+   Gemma4, reached the production live-generation path, exposed the collector
+   protocol mismatch, applied the TDD collector corrective, passed the full
+   post-fix static regression, and passed the canonical bucket-16 production
+   generation.
+
+Historical evidence remains in the existing project/temp packages, including:
+/kaggle/working/temp/gemma4-31b-g8-live-authority-20260915T011116Z/
+/kaggle/working/temp/gemma4-31b-g8-live-authority-20260915T010119Z/
+/kaggle/working/temp/gemma4-31b-g8-live-authority-20260915T005205Z/
+/kaggle/working/temp/gemma4-31b-g8-live-authority-20260914T075848Z/
+/kaggle/working/temp/codex-session-01a09ee9-b874-71f1-865f-b9c9c114249b.md
+
+The existing post-fix sidecar also records the historical classification and
+states that earlier packages were not rewritten.

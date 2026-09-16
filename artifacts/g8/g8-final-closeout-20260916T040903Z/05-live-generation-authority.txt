@@ -1,0 +1,30 @@
+CANONICAL FINAL LIVE GENERATION AUTHORITY
+
+FINAL_LIVE_JOB=job-f555faed03dc450f88a9a336
+FINAL_LIVE_JOB_STATUS=completed
+REQUEST_PATH=/generate/async
+prompt="Hello"
+system=""
+max_new_tokens=1
+PROMPT_TOKENS=10
+REQUIRED_LENGTH=11
+GENERATION_MAX_LENGTH=16
+BUCKETED=true
+BUCKET_16_LIVE_TESTED=true
+BUCKET_16_LIVE_RESULT=PASS
+FINAL_INFERENCE_SECONDS=413.141671
+GENERATED_OUTPUT_NONEMPTY=true
+G8_LIVE_GENERATION_PASS=true
+
+The existing server transition evidence records the canonical POST as HTTP
+202, result polling as HTTP 202 while processing, and HTTP 200 after terminal
+completion. The recorded final result payload contains the same job ID,
+metrics, bucketed=true, generation_max_length=16, prompt_tokens=10, and
+generation_seconds/inference_seconds=413.141671.
+
+No substitute request and no second live generation was used. No additional
+generation was performed during formal closeout.
+
+Evidence:
+/kaggle/working/KerasHub-Gemma4-31B-IT-Kaggle-TPU-v5e8-Text-Vision/artifacts/g8/post-fix-closeout-20260916/runtime-evidence.json
+/kaggle/working/KerasHub-Gemma4-31B-IT-Kaggle-TPU-v5e8-Text-Vision/artifacts/g8/post-fix-closeout-20260916/server-transition.log

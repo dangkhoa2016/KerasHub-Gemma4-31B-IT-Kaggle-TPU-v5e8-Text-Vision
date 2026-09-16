@@ -1,0 +1,19 @@
+{
+  "G7_SCOPE_RESOLUTION": "PASS",
+  "G7_CPU_VERIFICATION": "PASS",
+  "G7_LIVE_MODEL_BACKED_REST_REQUIRED": false,
+  "G7_LIVE_TEXT_REST_REQUIRED": false,
+  "G7_LIVE_IMAGE_REST_REQUIRED": false,
+  "G7_STREAMING_REQUIRED": false,
+  "G7_AUTH_REQUIRED": true,
+  "G7_GRACEFUL_SHUTDOWN_REQUIRED": false,
+  "G7_TPU_REQUIRED": false,
+  "decision_basis": [
+    "docs/ROADMAP.md defines G7 as REST server acceptance and separates G8/G9.",
+    "README.md and docs/API.md define routes and HTTP request formats but do not require a fresh live model-backed request for G7.",
+    "docs/ARCHITECTURE.md places model loading in the spawned TPU worker; CPU fake/stub injection can verify the coordinator HTTP surface without loading Gemma/JAX."
+  ],
+  "new_tpu_run_started": false,
+  "tag": false,
+  "release": false
+}

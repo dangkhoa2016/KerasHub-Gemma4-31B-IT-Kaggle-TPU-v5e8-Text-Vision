@@ -1,0 +1,19 @@
+G8 FORMAL FINAL CLOSEOUT ADJUDICATION
+
+CLOSEOUT_UTC=2026-09-16T04:09:03Z
+CONTROLLING_DIRECTIVE=/kaggle/working/aaaa.md
+PROJECT_ROOT=/kaggle/working/KerasHub-Gemma4-31B-IT-Kaggle-TPU-v5e8-Text-Vision
+POST_FIX_SIDECAR=/kaggle/working/KerasHub-Gemma4-31B-IT-Kaggle-TPU-v5e8-Text-Vision/artifacts/g8/post-fix-closeout-20260916
+FORMAL_CLOSEOUT_PACKAGE=/kaggle/working/KerasHub-Gemma4-31B-IT-Kaggle-TPU-v5e8-Text-Vision/artifacts/g8/g8-final-closeout-20260916T040903Z
+
+SCOPE=final G8 evidence adjudication and closeout artifacts only
+LIVE_EXECUTION_DURING_CLOSEOUT=NONE
+ADDITIONAL_GENERATION_PERFORMED=false
+G9_STARTED=false
+TAG=false
+RELEASE=false
+
+The technical/live work was complete before this adjudication. All runtime,
+model, generation, regression, and OOM claims below are transcribed from the
+frozen authority and existing post-fix sidecar; this closeout performed no
+TPU inference, model loading, server restart, worker restart, or JAX probe.

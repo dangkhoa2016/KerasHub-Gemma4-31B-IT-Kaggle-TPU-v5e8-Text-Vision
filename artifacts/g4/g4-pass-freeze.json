@@ -1,0 +1,33 @@
+{
+  "gate": "G4",
+  "status": "CLOSED",
+  "result": "G4_NATIVE_VS_SPLIT_CHARACTERIZED",
+  "characterization": "PASS",
+  "recommended_path": "SPLIT",
+  "split_generation_seconds": 26.965903,
+  "split_generation_call_count": 1,
+  "model_load_count": 1,
+  "tpu_device_count": 8,
+  "candidate_a_sharding_verified": true,
+  "authority_archive": "/kaggle/working/gemma4-31b-g4-characterization-20260914T003028Z.tar.gz",
+  "authority_archive_sha256": "5ae0609df40393aaaf719c9615715610c176cbbd1f6584e987f3b6aa6a3bc662",
+  "g3_frozen_result_unchanged": true,
+  "g4_freeze_verification": "PASS",
+  "g4_immutable": true,
+  "g4_rerun_forbidden": true,
+  "source_hashes": {
+    "requirements-tpu-g3.txt": "b8bf1f1f1dfcb4b54c3b96928c9bed1881f7122e23fd72c8e189cabfc0acd8a3",
+    "scripts/run_g3_tpu_authority.sh": "d269bfe13a24c599300e992dcf16a2b41be2fdeee49d258008b12bd58149d190",
+    "scripts/g3_tpu_authority.py": "78041999182ebd49aba9b3528002da63625aa1e0a4251aa06e45f9816d6f5456",
+    "scripts/g3_oom_adjudication.py": "8cfae5af96541af85260257219eee1fbff75c7d0e1b41dc560ff94af3df029a0",
+    "src/gemma4_server/tpu/authority_contract.py": "c2f2303b475f90ef52f4906f0c2f8964448a4fc5d2d4dbcd88532e1c1c5e4ede",
+    "src/gemma4_server/tpu/engine.py": "76eb6494cb0cc3b25c5a115e7c1c9c8733351fce1262f5e2fc8aec12b762afcf",
+    "src/gemma4_server/tpu/distribution.py": "a59685a4b361c16864fad1bd1bc7021afd9a1b5d8dfa14b0e6e5c118d6c9c353",
+    "src/gemma4_server/tpu/sharded_checkpoint.py": "fca555118584fdd4f9938895df690bee95829792634d3562b43cf10cf170a281",
+    "src/gemma4_server/tpu/generation.py": "4a2c453f6416e52d2389637048d26cd6a5abd15891fc3f7571a2614de8482343",
+    "scripts/g4_split_authority.py": "ee90861fbcfbefcb8b96aa7dfe576b39eb5929d13737362e5f01fc5485d9a4c0",
+    "scripts/g4_evidence.py": "af46e2be818d13b6e1ca32dc9bd0cff021e116426e4f5245e5007d8924ae63e8",
+    "scripts/run_g4_characterization.sh": "9360310130fd7e5bcb80cb00b11fe046e40a063becd00111aa69f26dcc607376",
+    "src/gemma4_server/tpu/g4_split.py": "0cf417a5caf238cefc744dd4ed8b31572fc1abb25cbc1634a531282c14492b84"
+  }
+}

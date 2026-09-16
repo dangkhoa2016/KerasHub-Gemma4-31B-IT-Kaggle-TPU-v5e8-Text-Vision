@@ -1,0 +1,112 @@
+{
+  "G7_SCOPE_RESOLUTION": "PASS",
+  "G7_ENTRY_ELIGIBLE": true,
+  "G7_STARTED": true,
+  "G6_AUTHORITY": {
+    "archive": "/kaggle/working/temp/gemma4-31b-g6-final-sharding-memory-evidence-20260914T034943Z.tar.gz",
+    "sha256": "52c6ac41100e736984895588d54a47d04bb4e41228b36e425d42c9a2f53c25f0",
+    "explicit_freeze_artifact_present": true,
+    "freeze_required_for_g7": false,
+    "new_tpu_run_started": false
+  },
+  "requirements": [
+    {
+      "requirement_id": "G7-REST-001",
+      "source_file": "docs/ROADMAP.md",
+      "source_heading_or_context": "Roadmap > gate list",
+      "requirement_text_summary": "G7 is REST server acceptance.",
+      "verification_class": "STATIC",
+      "live_model_required": false,
+      "belongs_to_gate": "G7",
+      "notes": "G8 and G9 are separate roadmap gates."
+    },
+    {
+      "requirement_id": "G7-REST-002",
+      "source_file": "README.md",
+      "source_heading_or_context": "REST endpoints",
+      "requirement_text_summary": "Expose the documented root, health, info, text, image, result, and restart REST routes.",
+      "verification_class": "STATIC",
+      "live_model_required": false,
+      "belongs_to_gate": "G7",
+      "notes": "Route registration is in G7; full restart/lifecycle behavior is explicitly deferred to G8."
+    },
+    {
+      "requirement_id": "G7-REST-003",
+      "source_file": "docs/API.md",
+      "source_heading_or_context": "Authentication",
+      "requirement_text_summary": "Accept Authorization Bearer API keys or X-API-Key for protected routes.",
+      "verification_class": "CPU_UNIT",
+      "live_model_required": false,
+      "belongs_to_gate": "G7",
+      "notes": "Health/liveness remain public according to the implementation's documented health surface."
+    },
+    {
+      "requirement_id": "G7-REST-004",
+      "source_file": "docs/API.md",
+      "source_heading_or_context": "Text",
+      "requirement_text_summary": "Accept text generation requests, including the documented max_new_tokens field and async result polling surface.",
+      "verification_class": "CPU_INTEGRATION",
+      "live_model_required": false,
+      "belongs_to_gate": "G7",
+      "notes": "CPU fake/stub inference proves HTTP mechanics only. Cold compile and async lifecycle acceptance belongs to G8."
+    },
+    {
+      "requirement_id": "G7-REST-005",
+      "source_file": "docs/API.md",
+      "source_heading_or_context": "Image",
+      "requirement_text_summary": "Accept image_base64 JSON and multipart image requests with prompt options.",
+      "verification_class": "CPU_INTEGRATION",
+      "live_model_required": false,
+      "belongs_to_gate": "G7",
+      "notes": "CPU fixture parsing and fake/stub submission prove the REST contract; no live image generation is required by canonical text."
+    },
+    {
+      "requirement_id": "G7-REST-006",
+      "source_file": "docs/API.md",
+      "source_heading_or_context": "Health",
+      "requirement_text_summary": "Expose /health/live, /health/ready, and /info with JSON health/runtime responses.",
+      "verification_class": "CPU_UNIT",
+      "live_model_required": false,
+      "belongs_to_gate": "G7",
+      "notes": "Readiness is tested against an injected manager state and must not instantiate a model."
+    },
+    {
+      "requirement_id": "G7-REST-007",
+      "source_file": "docs/API.md",
+      "source_heading_or_context": "Restart",
+      "requirement_text_summary": "Expose the authenticated restart route and X-Restart-Secret gate.",
+      "verification_class": "STATIC",
+      "live_model_required": false,
+      "belongs_to_gate": "G7",
+      "notes": "Full restart, graceful shutdown, and lifecycle semantics are G8 scope."
+    },
+    {
+      "requirement_id": "G7-BOUNDARY-001",
+      "source_file": "docs/ROADMAP.md",
+      "source_heading_or_context": "Roadmap > gate list",
+      "requirement_text_summary": "Async/cold compile plus restart/lifecycle acceptance is G8, not G7.",
+      "verification_class": "STATIC",
+      "live_model_required": false,
+      "belongs_to_gate": "G8",
+      "notes": "Only route/HTTP mechanics needed to prove the G7 surface are included here."
+    },
+    {
+      "requirement_id": "G7-BOUNDARY-002",
+      "source_file": "docs/ROADMAP.md",
+      "source_heading_or_context": "Roadmap > gate list",
+      "requirement_text_summary": "PRIME/HOT acceptance is G9, not G7.",
+      "verification_class": "STATIC",
+      "live_model_required": false,
+      "belongs_to_gate": "G9",
+      "notes": "No PRIME/HOT load or latency claims are made by G7."
+    }
+  ],
+  "live_necessity": {
+    "G7_LIVE_MODEL_BACKED_REST_REQUIRED": false,
+    "G7_LIVE_TEXT_REST_REQUIRED": false,
+    "G7_LIVE_IMAGE_REST_REQUIRED": false,
+    "G7_STREAMING_REQUIRED": false,
+    "G7_AUTH_REQUIRED": true,
+    "G7_GRACEFUL_SHUTDOWN_REQUIRED": false
+  }
+}

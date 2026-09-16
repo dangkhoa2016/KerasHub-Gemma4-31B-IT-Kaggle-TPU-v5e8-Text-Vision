@@ -1,0 +1,25 @@
+CORRECTIVE=R1_NATIVE_KERASHUB_PRESET_LOADER
+COMMAND=bash scripts/test_unit.sh
+
+STDOUT_STDERR:
+test_index (test_api_contract.T.test_index) ... skipped 'Flask is optional for CPU-only source validation'
+test_info_auth (test_api_contract.T.test_info_auth) ... skipped 'Flask is optional for CPU-only source validation'
+test_bucket (test_generation.T.test_bucket) ... ok
+test_chat_tokens (test_generation.T.test_chat_tokens) ... ok
+test_limit (test_generation.T.test_limit) ... ok
+test_vision_token (test_generation.T.test_vision_token) ... ok
+test_lifecycle (test_jobs.T.test_lifecycle) ... ok
+test_complete (test_model_path.T.test_complete) ... ok
+test_highest_revision (test_model_path.T.test_highest_revision) ... ok
+test_g2_does_not_generate (test_source_contract.T.test_g2_does_not_generate) ... ok
+test_identity (test_source_contract.T.test_identity) ... ok
+test_r1_uses_native_preset_loader (test_source_contract.T.test_r1_uses_native_preset_loader) ... ok
+test_empty (test_validation.T.test_empty) ... ok
+test_text (test_validation.T.test_text) ... ok
+
+----------------------------------------------------------------------
+Ran 14 tests in 0.004s
+
+OK (skipped=2)
+
+EXIT_CODE=0

@@ -1,0 +1,35 @@
+POST_FIX_FULL_TESTS=PASS
+POST_FIX_FULL_TEST_COUNT=133
+POST_FIX_COMPILEALL=PASS
+COLLECTOR_CORRECTIVE_TEST=PASS
+
+JAX_DEVICE_COUNT=8
+JAX_DEFAULT_BACKEND=tpu
+TPU_RUNTIME_REQUALIFIED=true
+
+FINAL_LIVE_JOB=job-f555faed03dc450f88a9a336
+FINAL_LIVE_JOB_STATUS=completed
+PROMPT_TOKENS=10
+REQUIRED_LENGTH=11
+GENERATION_MAX_LENGTH=16
+BUCKETED=true
+BUCKET_16_LIVE_TESTED=true
+BUCKET_16_LIVE_RESULT=PASS
+FINAL_INFERENCE_SECONDS=413.141671
+GENERATED_OUTPUT_NONEMPTY=true
+
+OOM_KILL_DELTA=0
+OOM_GROUP_KILL_DELTA=0
+
+SOURCE_PROVENANCE=PASS
+EVIDENCE_PACKAGE=/kaggle/working/KerasHub-Gemma4-31B-IT-Kaggle-TPU-v5e8-Text-Vision/artifacts/g8/post-fix-closeout-20260916
+G8_LIVE_GENERATION_PASS=true
+G8_FINAL_CLOSEOUT_ELIGIBLE=true
+
+G9_STARTED=false
+TAG=false
+RELEASE=false
+
+HISTORICAL_CLASSIFICATION=initial fresh-allocation JAX gate FAIL/TIMEOUT; same-session corrective recovery; TPU runtime requalified; initial live generation exposed collector protocol bug; TDD collector corrective; worker/server restarted; final canonical bucket-16 live generation PASS
+
+NEXT_ACTION=formal G8 closeout adjudication only

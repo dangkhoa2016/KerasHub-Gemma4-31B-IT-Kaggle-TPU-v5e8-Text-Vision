@@ -1,0 +1,23 @@
+POST-FIX REGRESSION VERIFICATION
+
+Evidence source:
+/kaggle/working/KerasHub-Gemma4-31B-IT-Kaggle-TPU-v5e8-Text-Vision/artifacts/g8/post-fix-closeout-20260916
+
+POST_FIX_FULL_TESTS=PASS
+POST_FIX_FULL_TEST_COUNT=133
+POST_FIX_COMPILEALL=PASS
+COLLECTOR_CORRECTIVE_TEST=PASS
+COLLECTOR_CORRECTIVE_TEST_COUNT=1
+
+Interpretation:
+- Historical complete suite: 132 tests.
+- Post-fix complete suite: 133 tests.
+- The additional test is the collector regression test and is expected.
+
+The existing sidecar README records the canonical command as
+`bash scripts/test_unit.sh`, exit code 0, 133 tests, with compileall and shell
+syntax checks passing. The sidecar SHA256SUMS was validated before closeout;
+all five listed evidence files returned OK.
+
+No test, compileall, or live generation command was rerun during formal
+closeout.

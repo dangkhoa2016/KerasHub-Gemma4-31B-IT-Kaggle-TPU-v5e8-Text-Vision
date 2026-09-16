@@ -1,0 +1,39 @@
+SOURCE PROVENANCE VERIFICATION
+
+SOURCE_PROVENANCE=PASS
+GIT_PERSISTENCE=NOT_PERFORMED_IN_THIS_CHECKOUT
+
+Required current hashes:
+6e2747bb793799cf0ac8f036cb5aa9cf57d02a2595374f0d04685b7d3c82eaea  src/gemma4_server/workers/manager.py
+f23bd5d70ea1d3abc19f8228eec6f420886449476c0940eb7c7eb091bd263e8d  tests/test_g8_manager_lifecycle.py
+
+The current checkout was checked against these exact SHA256 values and both
+matched. No source or regression-test repair was performed during closeout.
+
+Collector corrective semantics preserved:
+metrics = message.get("metrics") or {}
+self.store.mark_completed(
+    message["job_id"],
+    message["result"],
+    message.get(
+        "inference_seconds",
+        metrics.get("generation_seconds"),
+    ),
+    metrics,
+    message.get("runtime"),
+)
+
+Contract: top-level inference_seconds wins; otherwise nested
+metrics.generation_seconds is used; metrics is passed through unchanged.
+Regression test:
+tests.test_g8_manager_lifecycle.ManagerLifecycleTests.test_job_completed_event_uses_metrics_when_inference_seconds_is_nested
+
+Historical terminology remains distinct:
+layout_profile=gemma4_31b_dense_candidate_a_v1
+checkpoint_load_strategy=keras_hub_native_preset_loader
+generation_mode=keras_hub_native_unvalidated
+runtime_validation=NOT_YET_PROVEN
+
+The latter historical metadata is preserved as evidence; subsequent live
+evidence proves the relevant production generation behavior without rewriting
+the historical metadata.

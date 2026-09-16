@@ -1,0 +1,12 @@
+{
+  "error": "A total of 1 objects could not be loaded. Example error message for object <ReversibleEmbedding name=token_embedding, built=True>:\n\nLayer 'token_embedding' expected 1 variables, but received 0 variables during loading. Expected: ['embeddings']\n\nList of objects that could not be loaded:\n[<ReversibleEmbedding name=token_embedding, built=True>]",
+  "error_type": "ValueError",
+  "generation_executed": false,
+  "memory": {
+    "current_bytes": 72940400640,
+    "current_gib": 67.931042,
+    "peak_bytes": 81117724672,
+    "peak_gib": 75.546768
+  },
+  "status": "strict_load_failed"
+}

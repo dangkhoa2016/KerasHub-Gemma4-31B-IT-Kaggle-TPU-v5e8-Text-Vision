@@ -1,0 +1,31 @@
+{
+  "gate": "G8",
+  "G8_COLD_COMPILE_SEMANTICS_RESOLVED": true,
+  "G8_COLD_COMPILE_LIVE_TPU_REQUIRED": false,
+  "cold_boundary": "new worker lifecycle through native load, explicit model.compile, validation, post-load cleanup, and current-generation worker_ready",
+  "compile_operation": "Gemma4TPUEngine.load calls model.compile(sampler=greedy, run_eagerly=True)",
+  "compile_boundary": "during load before ready",
+  "first_inference_compile": "not specified by canonical docs/source; not claimed",
+  "split_generation_first_call": "not specified by canonical docs/source; not claimed",
+  "native_vision_first_call": "not specified by canonical docs/source; not claimed",
+  "readiness_during_compile": "not ready; manager accepts readiness only after current-generation worker_ready",
+  "http_during_compile": "existing not-ready rejection behavior",
+  "persistent_cache": "worker optionally configures JAX persistent compilation cache; this is not a warm-cache benchmark claim",
+  "whole_model_jit": "forbidden by frozen G3 safety evidence; run_eagerly=True is retained",
+  "live_measurement_claimed": false,
+  "evidence": [
+    "src/gemma4_server/tpu/engine.py:207-232",
+    "src/gemma4_server/tpu/engine.py:235-256",
+    "src/gemma4_server/tpu/engine.py:284,287-288",
+    "src/gemma4_server/workers/worker.py:40-48",
+    "src/gemma4_server/workers/worker.py:99-112",
+    "src/gemma4_server/workers/worker.py:114-165",
+    "src/gemma4_server/workers/manager.py:184-203",
+    "docs/ARCHITECTURE.md:22-24",
+    "docs/API.md:11-41",
+    "docs/G3-CLOSEOUT.md:28-29",
+    "directive:207-223",
+    "docs/superpowers/specs/2026-09-14-g8-async-cold-compile-restart-lifecycle-design.md:98-111"
+  ],
+  "tpu_run_started": false
+}

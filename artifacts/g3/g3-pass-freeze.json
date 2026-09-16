@@ -1,0 +1,24 @@
+{
+  "gate": "G3",
+  "status": "CLOSED",
+  "result": "PASS",
+  "text_generation": "PASS",
+  "g4_entry_eligible": true,
+  "g4_started": false,
+  "tpu_device_count": 8,
+  "candidate_a_sharding_verified": true,
+  "generation_call_count": 1,
+  "authority_archive": "/kaggle/working/gemma4-31b-vnext-g3-authority-20260913T225039Z.tar.gz",
+  "authority_archive_sha256": "475c940baf60302fd0f03e5f4b1a156696598d51162310ff168283551d6bb38e",
+  "source_hashes": {
+    "requirements-tpu-g3.txt": "b8bf1f1f1dfcb4b54c3b96928c9bed1881f7122e23fd72c8e189cabfc0acd8a3",
+    "scripts/run_g3_tpu_authority.sh": "d269bfe13a24c599300e992dcf16a2b41be2fdeee49d258008b12bd58149d190",
+    "scripts/g3_tpu_authority.py": "78041999182ebd49aba9b3528002da63625aa1e0a4251aa06e45f9816d6f5456",
+    "scripts/g3_oom_adjudication.py": "8cfae5af96541af85260257219eee1fbff75c7d0e1b41dc560ff94af3df029a0",
+    "src/gemma4_server/tpu/authority_contract.py": "c2f2303b475f90ef52f4906f0c2f8964448a4fc5d2d4dbcd88532e1c1c5e4ede",
+    "src/gemma4_server/tpu/engine.py": "76eb6494cb0cc3b25c5a115e7c1c9c8733351fce1262f5e2fc8aec12b762afcf",
+    "src/gemma4_server/tpu/distribution.py": "a59685a4b361c16864fad1bd1bc7021afd9a1b5d8dfa14b0e6e5c118d6c9c353",
+    "src/gemma4_server/tpu/sharded_checkpoint.py": "fca555118584fdd4f9938895df690bee95829792634d3562b43cf10cf170a281",
+    "src/gemma4_server/tpu/generation.py": "4a2c453f6416e52d2389637048d26cd6a5abd15891fc3f7571a2614de8482343"
+  }
+}

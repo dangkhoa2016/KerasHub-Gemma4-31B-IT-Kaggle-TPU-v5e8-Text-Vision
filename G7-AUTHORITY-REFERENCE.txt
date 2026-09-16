@@ -1,0 +1,8 @@
+G7_ARCHIVE=/kaggle/working/gemma4-31b-g7-rest-server-acceptance-20260914T043113Z.tar.gz
+G7_EXPECTED_SHA256=4f1547d6d86d796aca7ce7d396021d42829abb7f932d1713093345d69035c0a2
+G7_STATUS=CLOSED
+G7_AUTHORITY_VERIFIED=true
+G7_SOURCE_CONTINUITY_VERIFIED=true
+
+This is a reference only. The prior G7 archive is not embedded in the G8
+archive and prior G3-G7 evidence is not rewritten.

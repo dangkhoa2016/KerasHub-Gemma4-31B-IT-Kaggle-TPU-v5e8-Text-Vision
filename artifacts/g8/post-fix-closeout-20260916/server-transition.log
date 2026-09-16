@@ -1,0 +1,10 @@
+# Source: /kaggle/working/KerasHub-Gemma4-31B-IT-Kaggle-TPU-v5e8-Text-Vision/logs/server.log
+# The recorded poll stream is supplemented by the exact terminal JSON in runtime-evidence.json.
+2026-09-16 03:26:18,273 INFO 12938 gemma4_server {"elapsed_ms":0.458,"event":"http_request","job_id":"job-f555faed03dc450f88a9a336","method":"POST","path":"/generate/async","request_id":"req-ea193b351a084969b213d150","status":202}
+2026-09-16 03:26:30,916 INFO 12938 gemma4_server {"elapsed_ms":0.154,"event":"http_request","job_id":"job-f555faed03dc450f88a9a336","method":"GET","path":"/result/job-f555faed03dc450f88a9a336","request_id":"req-bda34ca44d744072ad0a3e9b","status":202}
+2026-09-16 03:26:45,834 INFO 12938 gemma4_server {"elapsed_ms":0.125,"event":"http_request","job_id":"job-f555faed03dc450f88a9a336","method":"GET","path":"/result/job-f555faed03dc450f88a9a336","request_id":"req-fa749d76c32e413e9e1005cd","status":202}
+2026-09-16 03:33:15,883 INFO 12938 gemma4_server {"elapsed_ms":0.129,"event":"http_request","job_id":"job-f555faed03dc450f88a9a336","method":"GET","path":"/result/job-f555faed03dc450f88a9a336","request_id":"req-2b3363f919a74f8ca75c7e5a","status":200}
+2026-09-16 03:33:44,557 INFO 12938 gemma4_server {"elapsed_ms":0.14,"event":"http_request","job_id":"job-f555faed03dc450f88a9a336","method":"GET","path":"/result/job-f555faed03dc450f88a9a336","request_id":"req-6e64ece8326a4d6d929a758d","status":200}
+
+# Semantic transition from recorded evidence:
+# accepted/queued -> processing (HTTP 202 poll stream) -> completed (HTTP 200).

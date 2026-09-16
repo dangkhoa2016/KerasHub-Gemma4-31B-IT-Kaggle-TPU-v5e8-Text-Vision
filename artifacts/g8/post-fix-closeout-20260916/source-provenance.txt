@@ -1,0 +1,21 @@
+SOURCE_PROVENANCE=PASS
+SOURCE_BASELINE_FOR_CORRECTIVE=/kaggle/working/temp/g8-package-stage-fix2.V7xoYJ
+
+6e2747bb793799cf0ac8f036cb5aa9cf57d02a2595374f0d04685b7d3c82eaea  src/gemma4_server/workers/manager.py
+f23bd5d70ea1d3abc19f8228eec6f420886449476c0940eb7c7eb091bd263e8d  tests/test_g8_manager_lifecycle.py
+
+COLLECTOR_CORRECTIVE_DIFF=
+--- previous job_completed handling
+-                    message["inference_seconds"],
+-                    message.get("metrics"),
+--- final job_completed handling
++                metrics = message.get("metrics") or {}
++                    message.get(
++                        "inference_seconds",
++                        metrics.get("generation_seconds"),
++                    ),
++                    metrics,
+
+COLLECTOR_CORRECTIVE_TEST=tests.test_g8_manager_lifecycle.ManagerLifecycleTests.test_job_completed_event_uses_metrics_when_inference_seconds_is_nested
+COLLECTOR_CONTRACT=top-level inference_seconds wins; otherwise nested metrics.generation_seconds is used; metrics is passed through unchanged.
+SOURCE_CHANGES_DURING_FINAL_LIVE_EVIDENCE=none observed

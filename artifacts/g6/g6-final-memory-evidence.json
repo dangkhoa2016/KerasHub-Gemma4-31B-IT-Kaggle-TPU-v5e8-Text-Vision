@@ -1,0 +1,52 @@
+{
+  "gate": "G6",
+  "memory_max_bytes": 354334801920,
+  "memory_peak_status": "NOT_RECORDED",
+  "historical_cgroup_oom_kill_note": "The cumulative cgroup oom_kill counter was 1 before and after each successful authority run. Run-specific deltas are zero.",
+  "runs": {
+    "G3": {
+      "authority_result": "/kaggle/working/gemma4-31b-vnext-g3-authority-20260913T225039Z/07-authority-result.json",
+      "memory_before_file": "/kaggle/working/gemma4-31b-vnext-g3-authority-20260913T225039Z/04-cgroup-before.txt",
+      "memory_after_file": "/kaggle/working/gemma4-31b-vnext-g3-authority-20260913T225039Z/08-cgroup-after.txt",
+      "memory_current_before_authority": 9226469376,
+      "memory_current_after_authority": 180039786496,
+      "memory_current_after_cleanup": 73623314432,
+      "memory_current_before_generation": "NOT_RECORDED",
+      "memory_current_after_generation": "NOT_RECORDED",
+      "memory_events_before": {"low": 0, "high": 0, "max": 519079, "oom": 8, "oom_kill": 1, "oom_group_kill": 0},
+      "memory_events_after": {"low": 0, "high": 0, "max": 519079, "oom": 8, "oom_kill": 1, "oom_group_kill": 0},
+      "oom_kill_delta": 0,
+      "oom_kill_delta_method": "derived from 04-cgroup-before.txt and 08-cgroup-after.txt"
+    },
+    "G4": {
+      "authority_result": "/kaggle/working/gemma4-31b-g4-characterization-20260914T003028Z/09-g4-result.json",
+      "memory_before_file": "/kaggle/working/gemma4-31b-g4-characterization-20260914T003028Z/10-memory-before.txt",
+      "memory_after_file": "/kaggle/working/gemma4-31b-g4-characterization-20260914T003028Z/11-memory-after.txt",
+      "memory_current_before_authority": 73038352384,
+      "memory_current_after_load": 73758302208,
+      "memory_current_after_authority": 74582781952,
+      "memory_current_after_generation": 74582781952,
+      "memory_current_after_cleanup": 66111483904,
+      "memory_events_before": {"low": 0, "high": 0, "max": 519079, "oom": 8, "oom_kill": 1, "oom_group_kill": 0},
+      "memory_events_after": {"low": 0, "high": 0, "max": 519079, "oom": 8, "oom_kill": 1, "oom_group_kill": 0},
+      "oom_kill_delta": 0,
+      "oom_kill_delta_method": "direct split_host_oom_delta=0 plus matching before/after snapshots"
+    },
+    "G5": {
+      "authority_result": "/kaggle/working/gemma4-31b-g5-image-authority-20260914T014715Z/11-g5-result.json",
+      "memory_before_file": "/kaggle/working/gemma4-31b-g5-image-authority-20260914T014715Z/08-memory-before.txt",
+      "memory_after_file": "/kaggle/working/gemma4-31b-g5-image-authority-20260914T014715Z/12-memory-after.txt",
+      "memory_current_before_authority": 73077772288,
+      "memory_current_after_load": 73856659456,
+      "memory_current_before_generation": 73996427264,
+      "memory_current_after_authority": 174838304768,
+      "memory_current_after_generation": 174838304768,
+      "memory_current_after_cleanup": 66150940672,
+      "memory_events_before": {"low": 0, "high": 0, "max": 519079, "oom": 8, "oom_kill": 1, "oom_group_kill": 0},
+      "memory_events_after": {"low": 0, "high": 0, "max": 519079, "oom": 8, "oom_kill": 1, "oom_group_kill": 0},
+      "oom_kill_delta": 0,
+      "oom_kill_delta_method": "direct G5_HOST_OOM_KILL_DELTA=0 plus matching before/after snapshots"
+    }
+  },
+  "conclusion": "G6_FINAL_MEMORY_EVIDENCE=PASS"
+}

@@ -1,0 +1,46 @@
+{
+  "gate": "G8",
+  "G8_SCOPE_RESOLUTION": "PASS",
+  "G8_CPU_VERIFICATION": "PASS",
+  "G8_COLD_COMPILE_SEMANTICS_RESOLVED": true,
+  "G8_LIVE_MODEL_LIFECYCLE_REQUIRED": false,
+  "G8_LIVE_COLD_COMPILE_REQUIRED": false,
+  "G8_LIVE_RESTART_REQUIRED": false,
+  "G8_TPU_REQUIRED": false,
+  "NEW_TPU_RUN_STARTED": false,
+  "decision": "CPU_ONLY",
+  "canonical_live_requirement_found": false,
+  "covered_without_live_31b": [
+    "async job submission and polling",
+    "worker load/ready/failure lifecycle",
+    "cold compile state boundary",
+    "restart serialization and readiness",
+    "stale generation isolation",
+    "terminal job behavior",
+    "single worker/model ownership",
+    "shutdown and error propagation"
+  ],
+  "deferred_to_g9": [
+    "PRIME/HOT",
+    "warm steady-state",
+    "hot-cache characterization",
+    "latency",
+    "throughput"
+  ],
+  "canonical_citations": [
+    "docs/ROADMAP.md:38-49",
+    "docs/ARCHITECTURE.md:7-24",
+    "docs/API.md:11-41",
+    "docs/superpowers/specs/2026-09-14-g8-async-cold-compile-restart-lifecycle-design.md:86-111",
+    "docs/superpowers/specs/2026-09-14-g8-async-cold-compile-restart-lifecycle-design.md:123-129",
+    "directive:715-746"
+  ],
+  "prohibited_actions_not_performed": [
+    "TPU preparation",
+    "JAX/Gemma import",
+    "model load",
+    "checkpoint access",
+    "server process",
+    "live lifecycle"
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "g3_frozen": true,
+  "g3_authority_archive": "/kaggle/working/gemma4-31b-vnext-g3-authority-20260913T225039Z.tar.gz",
+  "g3_authority_archive_sha256": "475c940baf60302fd0f03e5f4b1a156696598d51162310ff168283551d6bb38e",
+  "g4_entry_eligible": true,
+  "g4_scope_resolution": "PASS",
+  "g4_started": true,
+  "g4_scope_source": "docs/ROADMAP.md:23; docs/ARCHITECTURE.md:29-31",
+  "g4_scope_summary": "Characterize native KerasHub generation versus the repository-supported Gemma4-native split prefill/decode path after real TPU characterization.",
+  "next_action": "Prepare the G4 native-vs-split characterization plan and define the minimal comparison evidence from the canonical architecture scope.",
+  "tpu_workload_started": false,
+  "tag": false,
+  "release": false
+}

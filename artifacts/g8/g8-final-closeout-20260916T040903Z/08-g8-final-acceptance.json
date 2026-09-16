@@ -1,0 +1,49 @@
+{
+  "gate": "G8",
+  "adjudication": "formal_final_closeout",
+  "closeout_utc": "2026-09-16T04:09:03Z",
+  "status": "CLOSED/PASS",
+  "g8_final_closeout": "PASS",
+  "criteria": {
+    "g0_g7_closed_pass": true,
+    "post_fix_full_tests": "PASS",
+    "post_fix_full_test_count": 133,
+    "post_fix_compileall": "PASS",
+    "collector_corrective_test": "PASS",
+    "source_provenance": "PASS",
+    "tpu_runtime_requalified": true,
+    "jax_device_count": 8,
+    "jax_default_backend": "tpu",
+    "gemma4_model_load": "PASS",
+    "production_readiness": "PASS",
+    "final_live_job": "job-f555faed03dc450f88a9a336",
+    "final_live_job_status": "completed",
+    "prompt_tokens": 10,
+    "required_length": 11,
+    "generation_max_length": 16,
+    "bucketed": true,
+    "bucket_16_live_tested": true,
+    "bucket_16_live_result": "PASS",
+    "final_inference_seconds": 413.141671,
+    "generated_output_nonempty": true,
+    "g8_live_generation_pass": true,
+    "oom_kill_delta": 0,
+    "oom_group_kill_delta": 0
+  },
+  "boundaries": {
+    "g8_final_closeout_eligible": true,
+    "g9_entry_eligible": true,
+    "g9_started": false,
+    "git_persistence": "NOT_PERFORMED_IN_THIS_CHECKOUT",
+    "tag": false,
+    "release": false
+  },
+  "evidence": {
+    "post_fix_sidecar": "../post-fix-closeout-20260916",
+    "frozen_g8_artifacts": "../",
+    "source_manager": "../../../src/gemma4_server/workers/manager.py",
+    "source_lifecycle_test": "../../../tests/test_g8_manager_lifecycle.py",
+    "historical_packages": "/kaggle/working/temp"
+  },
+  "additional_generation_performed_during_closeout": false
+}

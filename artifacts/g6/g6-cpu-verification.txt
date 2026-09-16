@@ -1,0 +1,7 @@
+G6_CPU_VERIFICATION=PASS
+unit_suite=PASS
+compileall=PASS
+shell_syntax=PASS
+json_parse=PASS
+sha256_checks=PASS
+authority_scripts_executed=false

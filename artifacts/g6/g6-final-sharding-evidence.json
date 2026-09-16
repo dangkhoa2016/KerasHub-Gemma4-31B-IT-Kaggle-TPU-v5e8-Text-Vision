@@ -1,0 +1,76 @@
+{
+  "gate": "G6",
+  "evidence_status": "PASS",
+  "facts": {
+    "MODEL_PRESET": {
+      "value": "gemma4_instruct_31b",
+      "source_gate": "G5",
+      "source_file": "/kaggle/working/gemma4-31b-g5-image-authority-20260914T014715Z/05-hardware-gate.txt",
+      "source_field": "MODEL_PRESET"
+    },
+    "MODEL_DTYPE": {
+      "value": "bfloat16",
+      "source_gate": "G3",
+      "source_file": "/kaggle/working/gemma4-31b-vnext-g3-authority-20260913T225039Z/07-authority-result.json",
+      "source_field": "TOKEN_EMBEDDING_DTYPE"
+    },
+    "MESH_SHAPE": {
+      "value": [1, 8],
+      "source_gate": "G4",
+      "source_file": "/kaggle/working/gemma4-31b-g4-characterization-20260914T003028Z/09-g4-result.json",
+      "source_field": "MODEL_LOAD_METADATA.sharding_samples[0].sharding"
+    },
+    "MESH_AXES": {
+      "value": ["batch", "model"],
+      "source_gate": "G4",
+      "source_file": "/kaggle/working/gemma4-31b-g4-characterization-20260914T003028Z/09-g4-result.json",
+      "source_field": "MODEL_LOAD_METADATA.sharding_samples[0].sharding"
+    },
+    "TPU_DEVICE_COUNT": {
+      "value": 8,
+      "source_gate": "G3",
+      "source_file": "/kaggle/working/gemma4-31b-vnext-g3-authority-20260913T225039Z/07-authority-result.json",
+      "source_field": "TPU_DEVICE_COUNT"
+    },
+    "TOKEN_EMBEDDING_SHAPE": {
+      "value": [262144, 5376],
+      "source_gate": "G3",
+      "source_file": "/kaggle/working/gemma4-31b-vnext-g3-authority-20260913T225039Z/07-authority-result.json",
+      "source_field": "TOKEN_EMBEDDING_SHAPE"
+    },
+    "TOKEN_EMBEDDING_DTYPE": {
+      "value": "bfloat16",
+      "source_gate": "G3",
+      "source_file": "/kaggle/working/gemma4-31b-vnext-g3-authority-20260913T225039Z/07-authority-result.json",
+      "source_field": "TOKEN_EMBEDDING_DTYPE"
+    },
+    "TOKEN_EMBEDDING_ADDRESSABLE_SHARDS": {
+      "value": 8,
+      "source_gate": "G3",
+      "source_file": "/kaggle/working/gemma4-31b-vnext-g3-authority-20260913T225039Z/07-authority-result.json",
+      "source_field": "TOKEN_EMBEDDING_ADDRESSABLE_SHARDS"
+    },
+    "TOKEN_EMBEDDING_SHARDING_SPEC": {
+      "value": "P('model','batch')",
+      "source_gate": "G3",
+      "source_file": "/kaggle/working/gemma4-31b-vnext-g3-authority-20260913T225039Z/07-authority-result.json",
+      "source_field": "TOKEN_EMBEDDING_SHARDING_SPEC"
+    },
+    "TOKEN_EMBEDDING_SHARD_SHAPES": {
+      "value": [[32768, 5376], [32768, 5376], [32768, 5376], [32768, 5376], [32768, 5376], [32768, 5376], [32768, 5376], [32768, 5376]],
+      "summary": "8x[32768,5376]",
+      "source_gate": "G3",
+      "source_file": "/kaggle/working/gemma4-31b-vnext-g3-authority-20260913T225039Z/07-authority-result.json",
+      "source_field": "TOKEN_EMBEDDING_SHARD_SHAPES"
+    }
+  },
+  "continuity": {
+    "G3_CANDIDATE_A": true,
+    "G4_CANDIDATE_A": true,
+    "G5_CANDIDATE_A": true,
+    "G3_TOKEN_EMBEDDING_FACTS": true,
+    "G4_TOKEN_EMBEDDING_FACTS": true,
+    "G5_TOKEN_EMBEDDING_FACTS": true
+  },
+  "conclusion": "FINAL_SHARDING_EVIDENCE=PASS"
+}

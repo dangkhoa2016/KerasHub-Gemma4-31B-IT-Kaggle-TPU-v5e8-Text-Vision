@@ -1,0 +1,181 @@
+G8_CPU_VERIFICATION=PASS
+
+--- Task 7 fresh rerun (2026-09-14 UTC) ---
+
+1) `python3 -m unittest discover -s tests -p 'test_*.py'`
+Exit code: 0
+Test count: 126
+Result: OK
+
+2) `python3 -m compileall -q src scripts clients/python`
+Exit code: 0
+
+3) `find scripts -type f -name '*.sh' -print0 | xargs -0 -r -n1 bash -n`
+Exit code: 0
+Test count: 12 shell files checked
+
+4) Project artifact JSON parse
+Exit code: 0
+Output: PROJECT_JSON_PARSE=PASS
+
+5) CPU server import/app construction
+Command: `PYTHONPATH=src python3 -c 'from gemma4_server.api.app import Runtime, create_app; from gemma4_server.core.config import Config; create_app(Runtime(Config.for_tests(), object()))'`
+Exit code: 0
+Result: PASS; no server process started.
+
+6) Accepted project-scoped dependency closure
+Exit code: 0
+Test count: 54 distributions in the transitive closure
+Output: `PROJECT_SCOPED_DEPENDENCY_GATE=PASS`
+
+7) Required Task 6 JSON validation
+Commands: `python3 -m json.tool artifacts/g8/g8-cold-compile-resolution.json >/dev/null` and `python3 -m json.tool artifacts/g8/g8-live-necessity-decision.json >/dev/null`
+Exit code: 0
+
+8) G7 authority hash
+Output: `4f1547d6d86d796aca7ce7d396021d42829abb7f932d1713093345d69035c0a2  /kaggle/working/gemma4-31b-g7-rest-server-acceptance-20260914T043113Z.tar.gz`
+
+FRESH_CPU_STATIC_VERIFICATION=PASS
+
+--- Task 7 Fix Round 2 fresh environment refresh ---
+
+The following counts supersede earlier Task 7 summary counts for the current
+environment.
+
+- Full repository suite: 126 tests, exit code 0.
+- Focused G8 suites after the regression fix: 32 tests, exit code 0.
+- Shell syntax: 12 shell files checked, exit code 0.
+- Project-scoped dependency closure: 54 distributions checked,
+  `PROJECT_SCOPED_DEPENDENCY_GATE=PASS`.
+- Project JSON parse: PASS.
+- CPU server import/app construction: PASS.
+- Required Task 6 JSON validation: PASS.
+- No TPU/JAX/Gemma/model/server operation: PASS (not performed).
+
+FIX_ROUND_2_CPU_STATIC_REFRESH=PASS
+G8 verification run: 2026-09-14 UTC
+Repository: /kaggle/working/KerasHub-Gemma4-31B-IT-Kaggle-TPU-v5e8-Text-Vision
+
+The required checks below were run fresh after the Task 6 resolution JSON
+artifacts were created. No TPU, JAX/Gemma model import, model load, checkpoint,
+server process, or Git operation was performed.
+
+1) Command
+python3 -m unittest discover -s tests -p 'test_*.py'
+Exit code: 0
+Test count: 126
+Output:
+..................................................../kaggle/working/KerasHub-Gemma4-31B-IT-Kaggle-TPU-v5e8-Text-Vision/src/gemma4_server/tpu/g5_vision.py:29: DeprecationWarning: 'mode' parameter is deprecated and will be removed in Pillow 13 (2026-10-15)
+  Image.fromarray(pixels, mode="RGB").save(target, format="PNG")
+.........Unhandled error request_id=req-7032dcf4fa6440c4bce10c0b
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/dist-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/kaggle/working/KerasHub-Gemma4-31B-IT-Kaggle-TPU-v5e8-Text-Vision/src/gemma4_server/api/app.py", line 155, in wrapped
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/kaggle/working/KerasHub-Gemma4-31B-IT-Kaggle-TPU-v5e8-Text-Vision/src/gemma4_server/api/app.py", line 330, in generate_async
+    return submit(
+           ^^^^^^^
+  File "/kaggle/working/KerasHub-Gemma4-31B-IT-Kaggle-TPU-v5e8-Text-Vision/src/gemma4_server/api/app.py", line 200, in submit
+    job = manager.submit(
+          ^^^^^^^^^^^^^^^
+  File "/kaggle/working/KerasHub-Gemma4-31B-IT-Kaggle-TPU-v5e8-Text-Vision/tests/test_g7_rest_contract.py", line 89, in submit
+    raise self.submit_error
+RuntimeError: boom
+................................................................
+----------------------------------------------------------------------
+Ran 126 tests in 3.414s
+
+OK
+Observed diagnostics are pre-existing/intentional: Pillow deprecation
+warning and the G7 JSON error-path's logged RuntimeError("boom"); neither is
+a test failure or error.
+
+2) Command
+python3 -m compileall -q src scripts clients/python
+Exit code: 0
+Test count: n/a
+Output: <empty>
+
+3) Command
+find scripts -type f -name '*.sh' -print0 | xargs -0 -r -n1 bash -n
+Exit code: 0
+Test count: 12 shell files checked
+Output: <empty>
+
+4) Command
+python3 - <<'PY'
+import json
+from pathlib import Path
+for path in Path('artifacts').rglob('*.json'):
+    json.loads(path.read_text(encoding='utf-8'))
+print('PROJECT_JSON_PARSE=PASS')
+PY
+Exit code: 0
+Test count: all artifact JSON files
+Output:
+PROJECT_JSON_PARSE=PASS
+
+5) Command
+PYTHONPATH=src python3 -c 'from gemma4_server.api.app import Runtime, create_app; from gemma4_server.core.config import Config; create_app(Runtime(Config.for_tests(), object()))'
+Exit code: 0
+Test count: n/a
+Output: <empty>
+The import is CPU-side app construction only; it does not start a process,
+load a model, or import JAX/Gemma runtime modules.
+
+6) Command (accepted project-scoped dependency closure)
+PYTHONPATH=src python3 - <<'PY'
+import importlib.metadata
+from packaging.version import Version
+from gemma4_server.tpu.authority_contract import project_dependency_gate
+roots = ('keras', 'keras-hub', 'jax', 'flask', 'waitress')
+packages = {}
+for dist in importlib.metadata.distributions():
+    name = dist.metadata['Name']
+    candidate = {'version': dist.version, 'requires': list(dist.requires or ())}
+    existing = packages.get(name)
+    if existing is None or Version(candidate['version']) > Version(existing['version']):
+        packages[name] = candidate
+print(project_dependency_gate(packages, roots))
+PY
+Exit code: 0
+Test count: 54 distributions in the transitive closure
+Output:
+{'pass': True, 'checked_distributions_count': 54, 'PROJECT_SCOPED_DEPENDENCY_GATE': 'PASS'}
+
+Dependency-closure diagnostic (not the accepted result): the literal brief
+snippet was also run fresh and exited 1 because importlib.metadata exposed two
+installed Blinker distributions. The legacy `/usr/lib/python3/dist-packages`
+`blinker-1.4.egg-info` entry overwrote the active
+`/usr/local/lib/python3.12/dist-packages/blinker-1.9.0.dist-info` entry in the
+snippet's name-keyed dictionary, producing `blinker>=1.9.0` mismatch. The
+accepted command above uses the same authority gate and installed metadata,
+deterministically retaining the highest installed version; it passes without
+changing production code or installing packages. This is an environment/
+harness duplicate, not a missing project dependency.
+
+7) Required artifact JSON validation
+Command:
+python3 -m json.tool artifacts/g8/g8-cold-compile-resolution.json >/dev/null
+python3 -m json.tool artifacts/g8/g8-live-necessity-decision.json >/dev/null
+Exit code: 0
+Test count: 2 Task 6 JSON files
+Output: <empty>
+
+8) Required marker scan
+Command:
+rg -n 'G8_CPU_VERIFICATION=PASS|G8_COLD_COMPILE_SEMANTICS_RESOLVED|G8_TPU_REQUIRED|NEW_TPU_RUN_STARTED' artifacts/g8/g8-cpu-verification.txt artifacts/g8/g8-live-necessity-decision.md
+Exit code: 0
+Output:
+artifacts/g8/g8-live-necessity-decision.md:5:G8_CPU_VERIFICATION=PASS
+artifacts/g8/g8-live-necessity-decision.md:6:G8_COLD_COMPILE_SEMANTICS_RESOLVED=true
+artifacts/g8/g8-live-necessity-decision.md:10:G8_TPU_REQUIRED=false
+artifacts/g8/g8-live-necessity-decision.md:11:NEW_TPU_RUN_STARTED=false
+
+G8_CPU_VERIFICATION=PASS

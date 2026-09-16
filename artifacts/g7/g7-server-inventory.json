@@ -1,0 +1,71 @@
+{
+  "server_entrypoint": "src/server.py",
+  "framework": "Flask",
+  "http_server": "Waitress",
+  "bind": {"host": "Config.HOST, default 0.0.0.0", "port": "Config.PORT, default 7860"},
+  "process_topology": {
+    "server_process_count": 1,
+    "server_worker_count": 1,
+    "model_worker_count": 1,
+    "model_instance_count_initial": 1,
+    "model_load_count_initial": 1,
+    "multi_worker_option_present": false,
+    "auto_reload_present": false,
+    "process_pool_present": false,
+    "per_request_model_creation": false,
+    "notes": "Waitress serves one coordinator process; GenerationManager starts one spawned model worker with WORKER_ID=tpu-0. Automatic worker restart is existing lifecycle behavior and is outside the G7 live path."
+  },
+  "routes": {
+    "GET /": "index",
+    "GET /health/live": "live",
+    "GET /health/ready": "ready",
+    "GET /health": "ready alias",
+    "GET /info": "info",
+    "POST /generate": "generate",
+    "POST /generate/async": "generate_async",
+    "POST /generate/image": "generate_image",
+    "POST /generate/image/async": "generate_image_async",
+    "GET /result/<job_id>": "result",
+    "POST /restart": "restart"
+  },
+  "authentication": {
+    "public": ["GET /", "GET /health/live", "GET /health/ready", "GET /health"],
+    "api_key_protected": ["GET /info", "POST /generate", "POST /generate/async", "POST /generate/image", "POST /generate/image/async", "GET /result/<job_id>", "POST /restart"],
+    "restart_secret": "X-Restart-Secret plus normal API authentication for POST /restart"
+  },
+  "startup": {
+    "coordinator": "Config -> GenerationManager -> Runtime -> create_app -> manager.start_async -> Waitress serve",
+    "model_initialization": "spawned model_worker_main imports JAX/Keras/KerasHub, builds distribution, constructs Gemma4TPUEngine, calls engine.load once, emits worker_ready",
+    "health_only_model_load": false,
+    "readiness": "manager.health() reports ready only for one ready/busy worker with expected device_count"
+  },
+  "request_call_paths": {
+    "text": "HTTP JSON -> parse_generate_payload -> GenerationManager.submit -> task_queue -> model_worker_main -> engine.generate_text -> JobStore",
+    "image": "HTTP JSON/multipart -> parse_image_payload or parse_image_binary -> GenerationManager.submit -> task_queue -> model_worker_main -> engine.generate_image -> JobStore",
+    "result": "HTTP job id -> JobStore.get -> Job.public_dict",
+    "restart": "HTTP auth/secret -> Runtime.restart_lock -> GenerationManager.restart_worker"
+  },
+  "response_and_errors": {
+    "format": "Flask jsonify JSON",
+    "request_id": "X-Request-ID is normalized/generated and echoed on responses",
+    "validation": "400 with error and request_id",
+    "unauthorized": "401 JSON error",
+    "not_ready_or_store_full": "503 JSON error with Retry-After 30",
+    "queue_full": "429 JSON error",
+    "payload_too_large": "413 JSON error",
+    "failed_job": "500 public job error"
+  },
+  "shutdown": {
+    "signal_hooks": "src/server.py catches SIGTERM/SIGINT and invokes manager.shutdown in finally",
+    "full_acceptance_gate": "G8"
+  },
+  "frozen_runtime_reference": {
+    "model_preset": "gemma4_instruct_31b",
+    "backend": "jax",
+    "dtype": "bfloat16",
+    "expected_tpu_devices": 8,
+    "mesh_shape": [1, 8],
+    "mesh_axes": ["batch", "model"],
+    "candidate_a": "frozen G6 authority; not re-run in G7"
+  }
+}

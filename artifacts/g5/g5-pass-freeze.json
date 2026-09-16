@@ -1,0 +1,30 @@
+{
+  "gate": "G5",
+  "status": "CLOSED",
+  "result": "G5_IMAGE_CONDITIONED_GENERATION_PASS",
+  "image_generation": "PASS",
+  "path": "NATIVE_VISION",
+  "generation_seconds": 659.393383,
+  "generation_call_count": 1,
+  "model_load_count": 1,
+  "tpu_device_count": 8,
+  "candidate_a_sharding_verified": true,
+  "image_input_loaded": true,
+  "image_preprocess_returned": true,
+  "vision_conditioning_present": true,
+  "host_oom_kill_delta": 0,
+  "g6_entry_eligible": true,
+  "authority_archive": "/kaggle/working/gemma4-31b-g5-image-authority-20260914T014715Z.tar.gz",
+  "authority_archive_sha256": "52185f47752b809675e7f0076ef37411cc8fc3a41bbb57cd146a0d59618f55cf",
+  "source_hashes": [
+    "POST_G4_SOURCE_CHANGE=true",
+    "G4_FREEZE_MANIFEST=/kaggle/working/KerasHub-Gemma4-31B-IT-Kaggle-TPU-v5e8-Text-Vision/artifacts/g4/g4-pass-freeze.json",
+    "89eb5c252f827da4b3599ff2a2b9cc77d5ba97891b586f7b09d6dbcdb98413ce  src/gemma4_server/tpu/g5_vision.py",
+    "e2a10945e92ffd1f1c159b16033138e024033a1b2d3d59a55620c8f8de0a538b  scripts/g5_image_authority.py",
+    "ad82a4de763c57858e7c96fa25c15312cae6ba7b0e517c2975caba427bb39b83  scripts/run_g5_image_authority.sh",
+    "163af81881ae7efc56cfe288b3a5bcb78d91b78a777c9c0e41193df074760f59  tests/test_g5_contract.py",
+    "34aedabd700c44f82c06bd1f003b5589289155b7ff3241632e94737b5cfed3f8  artifacts/g5/g5-api-discovery.md"
+  ],
+  "immutable": true,
+  "rerun_forbidden": true
+}
