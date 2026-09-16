@@ -1,5 +1,5 @@
 from __future__ import annotations
-import logging, multiprocessing as mp, queue, threading, time, uuid
+import logging, multiprocessing as mp, os, queue, threading, time, uuid
 from pathlib import Path
 
 from ..core.errors import QueueFullError, WorkerNotReadyError
@@ -371,6 +371,48 @@ class GenerationManager:
         else:
             state = "unavailable"
 
+        runtime = {
+            "model": "gemma4_instruct_31b",
+            "backend": "jax",
+            "accelerator": "TPU v5e-8",
+            "source_sha": os.environ.get("FINAL_TPU_EXECUTION_SHA"),
+            "expected_tpu_devices": (
+                self.config.expected_tpu_devices
+            ),
+            "mesh": list(self.config.mesh_shape),
+            "runtime_validation": "NOT_YET_PROVEN",
+        }
+        ready_metadata = next(
+            (
+                w.get("metadata") or {}
+                for w in workers
+                if w.get("state") in {"ready", "busy"}
+                and (w.get("metadata") or {}).get("device_count")
+                == self.config.expected_tpu_devices
+            ),
+            {},
+        )
+        for key in (
+            "jax_default_backend",
+            "dtype",
+            "keras_version",
+            "keras_hub_version",
+            "jax_version",
+            "device_count",
+            "devices",
+            "model_class",
+            "backbone_class",
+            "num_layers",
+            "strict_weight_loading",
+            "skip_mismatch",
+            "checkpoint_load_strategy",
+            "layout_profile",
+            "candidate_a_verified",
+            "sharded_parameter_percent_by_bytes",
+        ):
+            if key in ready_metadata:
+                runtime[key] = ready_metadata[key]
+
         return {
             "state": state,
             "ready": ready,
@@ -385,16 +427,7 @@ class GenerationManager:
             ),
             "jobs": self.store.stats(),
             "workers": workers,
-            "runtime": {
-                "model": "gemma4_instruct_31b",
-                "backend": "jax",
-                "accelerator": "TPU v5e-8",
-                "expected_tpu_devices": (
-                    self.config.expected_tpu_devices
-                ),
-                "mesh": list(self.config.mesh_shape),
-                "runtime_validation": "NOT_YET_PROVEN",
-            },
+            "runtime": runtime,
         }
 
     def wait_idle(self, timeout):

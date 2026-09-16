@@ -199,6 +199,7 @@ class Gemma4TPUEngine:
         self.model = None
         self.preprocessor = None
         self.metadata = None
+        self._last_vision_conditioning_present = None
 
     def _phase(self, value):
         if self.phase_callback:
@@ -267,6 +268,7 @@ class Gemma4TPUEngine:
                 keras_hub, "__version__", "unknown"
             ),
             "jax_version": getattr(jax, "__version__", "unknown"),
+            "jax_default_backend": jax.default_backend(),
             "device_count": len(jax.devices("tpu")),
             "devices": [str(d) for d in jax.devices("tpu")],
             "strict_weight_loading": True,
@@ -276,6 +278,7 @@ class Gemma4TPUEngine:
             "task_config_present": task_config.is_file(),
             "weights_entry": str(entry),
             "layout_profile": LAYOUT_PROFILE,
+            "candidate_a_verified": True,
             "generation_mode": "keras_hub_native_unvalidated",
             "runtime_validation": "NOT_YET_PROVEN",
             **sharding,
@@ -296,6 +299,32 @@ class Gemma4TPUEngine:
             ),
         )
         import keras
+
+        if isinstance(inputs, dict) and inputs.get("images") is not None:
+            pixel_shape = tuple(
+                int(value)
+                for value in getattr(processed.get("pixel_values"), "shape", ())
+            )
+            indices_shape = tuple(
+                int(value)
+                for value in getattr(processed.get("vision_indices"), "shape", ())
+            )
+            try:
+                vision_mask = keras.ops.convert_to_numpy(
+                    processed.get("vision_mask")
+                )
+                vision_mask_true_count = int(vision_mask.astype(bool).sum())
+            except (AttributeError, TypeError, ValueError):
+                vision_mask_true_count = 0
+            self._last_vision_conditioning_present = bool(
+                len(pixel_shape) >= 2
+                and pixel_shape[-2] > 0
+                and vision_mask_true_count > 0
+                and len(indices_shape) >= 1
+                and indices_shape[-1] > 0
+            )
+        else:
+            self._last_vision_conditioning_present = None
         mask = keras.ops.convert_to_numpy(processed["padding_mask"])
         return int(mask.sum())
 
@@ -319,12 +348,15 @@ class Gemma4TPUEngine:
                 self.buckets,
                 self.max_generation_length,
             )
+        from .observability import CompilationEvidenceCapture
+
         started = time.perf_counter()
-        output = self.model.generate(
-            inputs,
-            max_length=plan.max_length,
-            strip_prompt=True,
-        )
+        with CompilationEvidenceCapture() as compilation_capture:
+            output = self.model.generate(
+                inputs,
+                max_length=plan.max_length,
+                strip_prompt=True,
+            )
         elapsed = time.perf_counter() - started
         return scalar_text(output).strip(), {
             "prompt_tokens": prompt_tokens,
@@ -334,6 +366,10 @@ class Gemma4TPUEngine:
             "bucketed": plan.bucketed,
             "generation_seconds": round(elapsed, 6),
             "generation_mode": "keras_hub_native_unvalidated",
+            "compile_cache_evidence": compilation_capture.snapshot(),
+            "vision_conditioning_present": getattr(
+                self, "_last_vision_conditioning_present", None
+            ),
             "authority_generation_path": (
                 "EXACT_LENGTH_AUTHORITY_PATH" if authority else None
             ),
