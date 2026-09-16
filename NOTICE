@@ -1,0 +1,5 @@
+KerasHub Gemma 4 31B Instruct on Kaggle TPU v5e-8
+
+This source distribution does not include model weights.
+Runtime status is intentionally marked unvalidated until real Kaggle TPU v5e-8
+evidence is produced.
