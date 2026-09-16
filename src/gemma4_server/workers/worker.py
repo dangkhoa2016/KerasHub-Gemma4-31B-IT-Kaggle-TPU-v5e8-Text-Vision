@@ -116,6 +116,9 @@ def model_worker_main(
         import jax, keras
         from ..tpu.distribution import build_distribution
         from ..tpu.engine import Gemma4TPUEngine
+        from ..tpu.observability import enable_jax_compile_logging
+
+        enable_jax_compile_logging()
 
         validate_tpu_fallback(
             bool(worker_config["require_v5e8"]), os.environ

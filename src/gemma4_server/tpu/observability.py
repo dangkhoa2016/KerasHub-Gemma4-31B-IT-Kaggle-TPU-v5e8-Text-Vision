@@ -11,6 +11,25 @@ _COMPILE_SECONDS_RE = re.compile(
 )
 
 
+def enable_jax_compile_logging() -> dict[str, Any]:
+    try:
+        import jax
+
+        jax.config.update("jax_log_compiles", True)
+        enabled = bool(jax.config.jax_log_compiles)
+        return {
+            "enabled": enabled,
+            "status": "direct" if enabled else "unavailable",
+            "error": None,
+        }
+    except Exception as exc:
+        return {
+            "enabled": False,
+            "status": "unavailable",
+            "error": f"{type(exc).__name__}: {exc}",
+        }
+
+
 def _covered_logger_names(names: tuple[str, ...]) -> tuple[str, ...]:
     unique = sorted(set(names), key=lambda value: (value.count("."), value))
     selected: list[str] = []
@@ -70,15 +89,23 @@ class CompilationEvidenceCapture:
         self._attached: list[logging.Logger] = []
         self._status = "not_started"
         self._error: str | None = None
+        self._compile_logging_enabled = False
+        self._coverage_verified = False
 
     def __enter__(self) -> "CompilationEvidenceCapture":
         self._handler = _CompilationHandler()
         try:
+            logging_state = enable_jax_compile_logging()
+            self._compile_logging_enabled = bool(logging_state.get("enabled"))
+            self._error = logging_state.get("error")
             for name in self.logger_names:
                 logger = logging.getLogger(name)
                 logger.addHandler(self._handler)
                 self._attached.append(logger)
-            self._status = "direct"
+            self._coverage_verified = bool(
+                self._attached and self._compile_logging_enabled
+            )
+            self._status = "direct" if self._coverage_verified else "unavailable"
         except Exception as exc:
             self._status = "unavailable"
             self._error = repr(exc)
@@ -119,6 +146,9 @@ class CompilationEvidenceCapture:
                 1 for event in events if event["persistent_cache_miss"]
             ),
             "status": self._status,
+            "compile_logging_enabled": self._compile_logging_enabled,
+            "coverage_verified": self._coverage_verified,
+            "observer_logger_names": self.logger_names,
             "error": self._error,
         }
 
@@ -132,6 +162,8 @@ def adjudicate_hot_cache(
     direct = all(
         capture.get("available") is True
         and capture.get("status") == "direct"
+        and capture.get("compile_logging_enabled") is True
+        and capture.get("coverage_verified") is True
         for capture in captures
     )
     hot_zero_compile = all(
@@ -145,6 +177,9 @@ def adjudicate_hot_cache(
         "hot_cache_reuse": passed,
         "hot_prefill_compile_seconds": 0.0 if passed else None,
         "hot_decode_compile_seconds": 0.0 if passed else None,
+        "HOT_CACHE_REUSE": passed,
+        "HOT_PREFILL_COMPILE_SECONDS": 0.0 if passed else None,
+        "HOT_DECODE_COMPILE_SECONDS": 0.0 if passed else None,
         "compile_evidence": "PASS" if passed else "FAIL",
         "reason": (
             "direct zero-compile evidence for HOT-1 and HOT-2"
