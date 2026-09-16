@@ -78,11 +78,13 @@ class FakeClient:
                     "compile_cache_evidence": {
                         "available": True,
                         "status": "direct",
-                        "compile_event_count": 0,
-                        "compile_seconds": 0.0,
-                        "persistent_cache_hits": 0,
-                        "persistent_cache_misses": 0,
-                    },
+                    "compile_event_count": 0,
+                    "compile_seconds": 0.0,
+                    "persistent_cache_hits": 0,
+                    "persistent_cache_misses": 0,
+                    "compile_logging_enabled": True,
+                    "coverage_verified": True,
+                },
                 },
             }
         is_prime = len(
@@ -99,6 +101,8 @@ class FakeClient:
                     "compile_seconds": 1.5 if is_prime else 0.0,
                     "persistent_cache_hits": 0,
                     "persistent_cache_misses": 0,
+                    "compile_logging_enabled": True,
+                    "coverage_verified": True,
                 }
             },
         }
@@ -162,12 +166,24 @@ class G9OrchestrationTests(unittest.TestCase):
                 "vision_semantic_acceptance": True,
                 "rest_acceptance": True,
                 "oom_delta": 0,
+                "PRE_PRIME_AUTHORITY_GATE": "PASS",
+                "GENERATION_POST_COUNT": 4,
+                "HOT_PREFILL_COMPILE_SECONDS": 0.0,
+                "HOT_DECODE_COMPILE_SECONDS": 0.0,
             }
         )
         failed = adjudicate_g9({**passed, "hot_cache_reuse": False})
 
         self.assertEqual(passed["G9_STATUS"], "CLOSED/PASS")
+        self.assertTrue(passed["HOT_CACHE_REUSE"])
+        self.assertEqual(passed["HOT_PREFILL_COMPILE_SECONDS"], 0.0)
+        self.assertEqual(passed["HOT_DECODE_COMPILE_SECONDS"], 0.0)
         self.assertEqual(failed["G9_STATUS"], "OPEN/FAIL")
+
+    def test_corrective_bucket_adjudication_is_committed(self):
+        self.assertTrue(
+            (ROOT / "docs" / "G9-CORRECTIVE-BUCKET-ADJUDICATION.md").is_file()
+        )
 
     def test_text_and_vision_use_async_production_routes(self):
         client = FakeClient()

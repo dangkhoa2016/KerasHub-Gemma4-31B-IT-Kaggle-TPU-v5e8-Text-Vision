@@ -402,6 +402,19 @@ def adjudicate_g9(rows: dict[str, Any]) -> dict[str, Any]:
         ),
         "rest_acceptance": bool(rows.get("rest_acceptance", False)),
         "oom_delta": rows.get("oom_delta"),
+        "pre_prime_authority_gate": rows.get(
+            "PRE_PRIME_AUTHORITY_GATE", "FAIL"
+        )
+        == "PASS",
+        "generation_post_count": rows.get("GENERATION_POST_COUNT", 0),
+        "hot_prefill_compile_seconds": rows.get(
+            "hot_prefill_compile_seconds",
+            rows.get("HOT_PREFILL_COMPILE_SECONDS"),
+        ),
+        "hot_decode_compile_seconds": rows.get(
+            "hot_decode_compile_seconds",
+            rows.get("HOT_DECODE_COMPILE_SECONDS"),
+        ),
     }
     passed = all(
         (
@@ -414,6 +427,10 @@ def adjudicate_g9(rows: dict[str, Any]) -> dict[str, Any]:
             required["vision_semantic_acceptance"],
             required["rest_acceptance"],
             required["oom_delta"] == 0,
+            required["pre_prime_authority_gate"],
+            required["generation_post_count"] > 0,
+            required["hot_prefill_compile_seconds"] == 0.0,
+            required["hot_decode_compile_seconds"] == 0.0,
         )
     )
     normalized.update(required)
@@ -424,6 +441,17 @@ def adjudicate_g9(rows: dict[str, Any]) -> dict[str, Any]:
             "G9_HOT_2": "PASS" if required["hot_2"] else "FAIL",
             "G9_HOT_CACHE_REUSE": required["hot_cache_reuse"],
             "G9_COMPILE_EVIDENCE": required["compile_evidence"],
+            "PRE_PRIME_AUTHORITY_GATE": (
+                "PASS" if required["pre_prime_authority_gate"] else "FAIL"
+            ),
+            "GENERATION_POST_COUNT": required["generation_post_count"],
+            "HOT_CACHE_REUSE": required["hot_cache_reuse"],
+            "HOT_PREFILL_COMPILE_SECONDS": required[
+                "hot_prefill_compile_seconds"
+            ],
+            "HOT_DECODE_COMPILE_SECONDS": required[
+                "hot_decode_compile_seconds"
+            ],
             "G9_STATUS": "CLOSED/PASS" if passed else "OPEN/FAIL",
         }
     )
@@ -691,6 +719,12 @@ def run_g9(args: argparse.Namespace) -> int:
             "oom_delta": _oom_delta(before_memory, after_memory),
             "PRE_PRIME_AUTHORITY_GATE": "PASS",
             "GENERATION_POST_COUNT": generation_post_counter[0],
+            "hot_prefill_compile_seconds": cache_result[
+                "hot_prefill_compile_seconds"
+            ],
+            "hot_decode_compile_seconds": cache_result[
+                "hot_decode_compile_seconds"
+            ],
         }
     except Exception as exc:
         after_memory = read_cgroup_snapshot()
@@ -719,6 +753,12 @@ def run_g9(args: argparse.Namespace) -> int:
             "error": repr(exc),
             "PRE_PRIME_AUTHORITY_GATE": "PASS",
             "GENERATION_POST_COUNT": generation_post_counter[0],
+            "hot_prefill_compile_seconds": cache_result.get(
+                "hot_prefill_compile_seconds"
+            ),
+            "hot_decode_compile_seconds": cache_result.get(
+                "hot_decode_compile_seconds"
+            ),
         }
     adjudication = adjudicate_g9(rows)
     _write_json(evidence_dir / "00-context.txt", {
@@ -726,6 +766,7 @@ def run_g9(args: argparse.Namespace) -> int:
         "model_reload_count": model_reload_count,
         "runtime_identity_before": runtime_identity_before,
     })
+    _write_json(evidence_dir / "00-pre-prime-authority-gate.json", pre_prime_gate)
     _write_json(evidence_dir / "01-source-runtime-identity.txt", {
         "runtime_identity_before": runtime_identity_before,
         "runtime_identity_after": read_runtime_identity(),
