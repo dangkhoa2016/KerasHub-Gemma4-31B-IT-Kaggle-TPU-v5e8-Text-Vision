@@ -10,6 +10,85 @@ _COMPILE_SECONDS_RE = re.compile(
     re.IGNORECASE,
 )
 
+_COMPILE_OP_RE = re.compile(
+    r"Compiling\s+jit\((\w+)\)",
+    re.IGNORECASE,
+)
+
+_CACHE_HIT_OP_RE = re.compile(
+    r"Persistent\s+(?:compilation\s+)?cache\s+hit\s+for\s+'(\w+)'",
+    re.IGNORECASE,
+)
+
+_CACHE_MISS_OP_RE = re.compile(
+    r"Persistent\s+(?:compilation\s+)?cache\s+miss\s+for\s+'(\w+)'",
+    re.IGNORECASE,
+)
+
+
+def parse_operation_identity(message: str) -> str | None:
+    m = _COMPILE_OP_RE.search(message)
+    if m:
+        return "jit_" + m.group(1)
+    m = _CACHE_HIT_OP_RE.search(message)
+    if m:
+        return m.group(1)
+    m = _CACHE_MISS_OP_RE.search(message)
+    if m:
+        return m.group(1)
+    return None
+
+
+def correlate_compile_events(events: list[dict[str, Any]]) -> dict[str, Any]:
+    compile_attempts: dict[str, list[str]] = {}
+    compile_attempt_count = 0
+    matched_hits = 0
+    matched_misses = 0
+    unmatched_hits = 0
+    unmatched_misses = 0
+    effective_compile = 0
+
+    for event in events:
+        op = parse_operation_identity(event.get("message", ""))
+        if event.get("compile") and op:
+            compile_attempts.setdefault(op, []).append("pending")
+            compile_attempt_count += 1
+
+    for event in events:
+        op = parse_operation_identity(event.get("message", ""))
+        if event.get("persistent_cache_hit") and op:
+            pending = compile_attempts.get(op, [])
+            if pending:
+                pending.pop(0)
+                matched_hits += 1
+            else:
+                unmatched_hits += 1
+        elif event.get("persistent_cache_miss") and op:
+            pending = compile_attempts.get(op, [])
+            if pending:
+                pending.pop(0)
+                matched_misses += 1
+                effective_compile += 1
+            else:
+                unmatched_misses += 1
+                effective_compile += 1
+
+    unresolved = sum(len(p) for p in compile_attempts.values())
+
+    return {
+        "compile_attempt_count": compile_attempt_count,
+        "persistent_cache_hits": matched_hits + unmatched_hits,
+        "persistent_cache_misses": matched_misses + unmatched_misses,
+        "matched_cache_hit_count": matched_hits,
+        "matched_cache_miss_count": matched_misses,
+        "unmatched_cache_hit_count": unmatched_hits,
+        "unmatched_cache_miss_count": unmatched_misses,
+        "unresolved_compile_attempt_count": unresolved,
+        "effective_compile_count": effective_compile,
+        "effective_compile_seconds": None if unresolved > 0 or effective_compile > 0 else 0.0,
+        "hot_eligible": unresolved == 0 and effective_compile == 0,
+    }
+
 
 def enable_jax_compile_logging() -> dict[str, Any]:
     try:
@@ -133,6 +212,7 @@ class CompilationEvidenceCapture:
             for event in compile_events
             if event["compile_seconds"] is not None
         ]
+        correlation = correlate_compile_events(events)
         return {
             "source": "jax_logging",
             "available": self._status == "direct",
@@ -150,6 +230,14 @@ class CompilationEvidenceCapture:
             "coverage_verified": self._coverage_verified,
             "observer_logger_names": self.logger_names,
             "error": self._error,
+            "compile_attempt_count": correlation["compile_attempt_count"],
+            "matched_cache_hit_count": correlation["matched_cache_hit_count"],
+            "matched_cache_miss_count": correlation["matched_cache_miss_count"],
+            "unmatched_cache_hit_count": correlation["unmatched_cache_hit_count"],
+            "unmatched_cache_miss_count": correlation["unmatched_cache_miss_count"],
+            "unresolved_compile_attempt_count": correlation["unresolved_compile_attempt_count"],
+            "effective_compile_count": correlation["effective_compile_count"],
+            "effective_compile_seconds": correlation["effective_compile_seconds"],
         }
 
 
@@ -166,13 +254,33 @@ def adjudicate_hot_cache(
         and capture.get("coverage_verified") is True
         for capture in captures
     )
-    hot_zero_compile = all(
-        capture.get("compile_event_count") == 0 for capture in (hot1, hot2)
+
+    def _effective_compile(capture: dict[str, Any]) -> int:
+        events = capture.get("events")
+        if isinstance(events, list) and events:
+            correlation = correlate_compile_events(events)
+            return correlation["effective_compile_count"]
+        return capture.get(
+            "effective_compile_count", capture.get("compile_event_count", 0)
+        )
+
+    def _unresolved(capture: dict[str, Any]) -> int:
+        events = capture.get("events")
+        if isinstance(events, list) and events:
+            correlation = correlate_compile_events(events)
+            return correlation["unresolved_compile_attempt_count"]
+        return capture.get("unresolved_compile_attempt_count", 0)
+
+    hot_zero_effective_compile = all(
+        _effective_compile(capture) == 0 for capture in (hot1, hot2)
     )
     hot_no_miss = all(
         capture.get("persistent_cache_misses") == 0 for capture in (hot1, hot2)
     )
-    passed = direct and hot_zero_compile and hot_no_miss
+    hot_no_unresolved = all(
+        _unresolved(capture) == 0 for capture in (hot1, hot2)
+    )
+    passed = direct and hot_zero_effective_compile and hot_no_miss and hot_no_unresolved
     return {
         "hot_cache_reuse": passed,
         "hot_prefill_compile_seconds": 0.0 if passed else None,
