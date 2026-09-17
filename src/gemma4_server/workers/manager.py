@@ -403,6 +403,8 @@ class GenerationManager:
             "model_class",
             "backbone_class",
             "num_layers",
+            "mesh_shape",
+            "mesh_axis_names",
             "strict_weight_loading",
             "skip_mismatch",
             "checkpoint_load_strategy",

@@ -493,6 +493,8 @@ class ManagerLifecycleTests(unittest.TestCase):
                 "model_class": "Gemma4CausalLM",
                 "backbone_class": "Gemma4Backbone",
                 "dtype": "bfloat16",
+                "mesh_shape": [1, 8],
+                "mesh_axis_names": ["batch", "model"],
                 "strict_weight_loading": True,
                 "skip_mismatch": False,
                 "layout_profile": "gemma4_31b_dense_candidate_a_v1",
@@ -505,6 +507,8 @@ class ManagerLifecycleTests(unittest.TestCase):
 
         self.assertEqual(runtime["model_class"], "Gemma4CausalLM")
         self.assertEqual(runtime["backbone_class"], "Gemma4Backbone")
+        self.assertEqual(runtime["mesh_shape"], [1, 8])
+        self.assertEqual(runtime["mesh_axis_names"], ["batch", "model"])
         self.assertTrue(runtime["candidate_a_verified"])
 
     def test_restart_joins_old_worker_before_new_start(self):

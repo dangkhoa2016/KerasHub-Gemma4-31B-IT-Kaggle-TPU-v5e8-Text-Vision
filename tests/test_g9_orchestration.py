@@ -18,6 +18,7 @@ from final_tpu_one_shot import (  # noqa: E402
     run_g9,
     run_text_acceptance,
     run_vision_acceptance,
+    _model_contract,
 )
 
 
@@ -44,8 +45,10 @@ class FakeClient:
                     "device_count": 8,
                     "expected_tpu_devices": 8,
                     "mesh": [1, 8],
+                    "mesh_shape": [1, 8],
                     "mesh_axis_names": ["batch", "model"],
                     "dtype": "bfloat16",
+                    "num_layers": 60,
                     "model_class": "Gemma4CausalLM",
                     "backbone_class": "Gemma4Backbone",
                     "strict_weight_loading": True,
@@ -109,6 +112,50 @@ class FakeClient:
 
 
 class G9OrchestrationTests(unittest.TestCase):
+    def test_model_contract_requires_explicit_mesh_authority(self):
+        result = _model_contract({
+            "model": "gemma4_instruct_31b",
+            "backend": "jax",
+            "jax_default_backend": "tpu",
+            "accelerator": "TPU v5e-8",
+            "dtype": "bfloat16",
+            "mesh": [1, 8],
+            "mesh_axis_names": ["batch", "model"],
+            "model_class": "Gemma4CausalLM",
+            "backbone_class": "Gemma4Backbone",
+            "strict_weight_loading": True,
+            "skip_mismatch": False,
+            "layout_profile": "gemma4_31b_dense_candidate_a_v1",
+            "checkpoint_load_strategy": "keras_hub_native_preset_loader",
+            "candidate_a_verified": True,
+        })
+
+        self.assertFalse(result["passed"])
+        self.assertFalse(result["checks"]["mesh_shape"])
+
+    def test_model_contract_requires_gemma4_layer_count(self):
+        result = _model_contract({
+            "model": "gemma4_instruct_31b",
+            "backend": "jax",
+            "jax_default_backend": "tpu",
+            "accelerator": "TPU v5e-8",
+            "dtype": "bfloat16",
+            "mesh": [1, 8],
+            "mesh_shape": [1, 8],
+            "mesh_axis_names": ["batch", "model"],
+            "num_layers": 59,
+            "model_class": "Gemma4CausalLM",
+            "backbone_class": "Gemma4Backbone",
+            "strict_weight_loading": True,
+            "skip_mismatch": False,
+            "layout_profile": "gemma4_31b_dense_candidate_a_v1",
+            "checkpoint_load_strategy": "keras_hub_native_preset_loader",
+            "candidate_a_verified": True,
+        })
+
+        self.assertFalse(result["passed"])
+        self.assertFalse(result["checks"]["num_layers"])
+
     def test_pre_prime_gate_requires_authenticated_info(self):
         client = FakeClient(info_status=401)
 

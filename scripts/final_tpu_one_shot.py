@@ -802,6 +802,10 @@ def _model_contract(runtime: dict[str, Any]) -> dict[str, Any]:
         "jax_default_backend": runtime.get("jax_default_backend") == "tpu",
         "accelerator": runtime.get("accelerator") == "TPU v5e-8",
         "dtype": runtime.get("dtype") == "bfloat16",
+        "mesh_shape": runtime.get("mesh_shape") == [1, 8],
+        "mesh_axis_names": runtime.get("mesh_axis_names")
+        == ["batch", "model"],
+        "num_layers": runtime.get("num_layers") == 60,
         "model_class": runtime.get("model_class") == "Gemma4CausalLM",
         "backbone_class": runtime.get("backbone_class") == "Gemma4Backbone",
         "strict_weight_loading": runtime.get("strict_weight_loading") is True,
