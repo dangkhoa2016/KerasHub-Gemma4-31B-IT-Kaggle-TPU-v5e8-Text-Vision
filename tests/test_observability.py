@@ -349,6 +349,155 @@ class CorrelationTests(unittest.TestCase):
         self.assertFalse(result["hot_eligible"])
 
 
+class FailClosedRedTests(unittest.TestCase):
+    """Red tests A-E: fail-closed defects discovered by independent review."""
+
+    def _make_compile_event(self, message, logger="jax._src.interpreters.pxla"):
+        return {
+            "logger": logger,
+            "level": "WARNING",
+            "message": message,
+            "compile": True,
+            "persistent_cache_hit": False,
+            "persistent_cache_miss": False,
+            "compile_seconds": None,
+        }
+
+    def _make_cache_hit_event(self, message, logger="jax._src.compiler"):
+        return {
+            "logger": logger,
+            "level": "WARNING",
+            "message": message,
+            "compile": False,
+            "persistent_cache_hit": True,
+            "persistent_cache_miss": False,
+            "compile_seconds": None,
+        }
+
+    def _make_cache_miss_event(self, message, logger="jax._src.compiler"):
+        return {
+            "logger": logger,
+            "level": "WARNING",
+            "message": message,
+            "compile": False,
+            "persistent_cache_hit": False,
+            "persistent_cache_miss": True,
+            "compile_seconds": None,
+        }
+
+    def test_red_a_unparseable_compile_must_fail_closed(self):
+        """RED-A: compile=True with unparseable message must remain unresolved."""
+        events = [
+            self._make_compile_event("Compiling <unexpected runtime format>"),
+        ]
+        result = correlate_compile_events(events)
+        self.assertEqual(result["compile_attempt_count"], 1)
+        self.assertGreaterEqual(result.get("unparseable_compile_attempt_count", 0), 1)
+        self.assertGreaterEqual(result["unresolved_compile_attempt_count"], 1)
+        self.assertIsNone(result["effective_compile_seconds"])
+        self.assertFalse(result["hot_eligible"])
+
+    def test_red_a_adjudication_fail_closed(self):
+        """RED-A: unparseable compile evidence -> HOT adjudication FAIL."""
+        events = [
+            self._make_compile_event("Compiling <unexpected runtime format>"),
+        ]
+        evidence = {
+            "available": True,
+            "status": "direct",
+            "events": events,
+            "compile_event_count": 1,
+            "compile_seconds": None,
+            "persistent_cache_hits": 0,
+            "persistent_cache_misses": 0,
+            "compile_logging_enabled": True,
+            "coverage_verified": True,
+        }
+        result = adjudicate_hot_cache(evidence, evidence, evidence)
+        self.assertFalse(result["HOT_CACHE_REUSE"])
+        self.assertEqual(result["compile_evidence"], "FAIL")
+        self.assertIsNone(result["HOT_PREFILL_COMPILE_SECONDS"])
+        self.assertIsNone(result["HOT_DECODE_COMPILE_SECONDS"])
+
+    def test_red_b_cache_hit_before_compile_no_backward_match(self):
+        """RED-B: cache hit BEFORE compile must not match backward."""
+        events = [
+            self._make_cache_hit_event("Persistent compilation cache hit for 'jit_while'"),
+            self._make_compile_event("Compiling jit(while)"),
+        ]
+        result = correlate_compile_events(events)
+        self.assertEqual(result["compile_attempt_count"], 1)
+        self.assertEqual(result["matched_cache_hit_count"], 0)
+        self.assertEqual(result["unmatched_cache_hit_count"], 1)
+        self.assertEqual(result["unresolved_compile_attempt_count"], 1)
+        self.assertEqual(result["effective_compile_count"], 0)
+        self.assertIsNone(result["effective_compile_seconds"])
+        self.assertFalse(result["hot_eligible"])
+
+    def test_red_b_adjudication_cache_hit_before_compile_fails(self):
+        """RED-B: adjudication must fail when hit precedes compile."""
+        events = [
+            self._make_cache_hit_event("Persistent compilation cache hit for 'jit_while'"),
+            self._make_compile_event("Compiling jit(while)"),
+        ]
+        evidence = {
+            "available": True,
+            "status": "direct",
+            "events": events,
+            "compile_event_count": 1,
+            "compile_seconds": None,
+            "persistent_cache_hits": 1,
+            "persistent_cache_misses": 0,
+            "compile_logging_enabled": True,
+            "coverage_verified": True,
+        }
+        result = adjudicate_hot_cache(evidence, evidence, evidence)
+        self.assertFalse(result["HOT_CACHE_REUSE"])
+        self.assertEqual(result["compile_evidence"], "FAIL")
+
+    def test_red_c_cache_miss_before_compile_must_fail(self):
+        """RED-C: cache miss BEFORE compile cannot resolve a future compile."""
+        events = [
+            self._make_cache_miss_event("Persistent compilation cache miss for 'jit_while'"),
+            self._make_compile_event("Compiling jit(while)"),
+        ]
+        result = correlate_compile_events(events)
+        self.assertEqual(result["matched_cache_miss_count"], 0)
+        self.assertEqual(result["unmatched_cache_miss_count"], 1)
+        self.assertEqual(result["unresolved_compile_attempt_count"], 1)
+        self.assertGreaterEqual(result["effective_compile_count"], 1)
+        self.assertFalse(result["hot_eligible"])
+
+    def test_red_d_same_op_fifo_ordering(self):
+        """RED-D: same-op events paired only forward in time."""
+        events = [
+            self._make_compile_event("Compiling jit(while)"),
+            self._make_cache_hit_event("Persistent compilation cache hit for 'jit_while'"),
+            self._make_compile_event("Compiling jit(while)"),
+            self._make_cache_hit_event("Persistent compilation cache hit for 'jit_while'"),
+        ]
+        result = correlate_compile_events(events)
+        self.assertEqual(result["compile_attempt_count"], 2)
+        self.assertEqual(result["matched_cache_hit_count"], 2)
+        self.assertEqual(result["unresolved_compile_attempt_count"], 0)
+        self.assertEqual(result["effective_compile_count"], 0)
+        self.assertEqual(result["effective_compile_seconds"], 0.0)
+        self.assertTrue(result["hot_eligible"])
+
+    def test_red_e_unparseable_compile_cannot_be_erased_by_later_cache_hit(self):
+        """RED-E: later cache hit may not erase unparseable compile evidence."""
+        events = [
+            self._make_compile_event("Compiling <unexpected runtime format>"),
+            self._make_cache_hit_event("Persistent compilation cache hit for 'jit_while'"),
+        ]
+        result = correlate_compile_events(events)
+        self.assertEqual(result["compile_attempt_count"], 1)
+        self.assertGreaterEqual(result.get("unparseable_compile_attempt_count", 0), 1)
+        self.assertEqual(result["unmatched_cache_hit_count"], 1)
+        self.assertGreaterEqual(result["unresolved_compile_attempt_count"], 1)
+        self.assertFalse(result["hot_eligible"])
+
+
 class CorrelationAdjudicationIntegrationTests(unittest.TestCase):
     """T7-T9: adjudication integration with correlation."""
 

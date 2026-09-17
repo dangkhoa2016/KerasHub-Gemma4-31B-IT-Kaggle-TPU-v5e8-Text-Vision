@@ -40,8 +40,9 @@ def parse_operation_identity(message: str) -> str | None:
 
 
 def correlate_compile_events(events: list[dict[str, Any]]) -> dict[str, Any]:
-    compile_attempts: dict[str, list[str]] = {}
+    pending_by_op: dict[str, list[str]] = {}
     compile_attempt_count = 0
+    unparseable_compile_attempt_count = 0
     matched_hits = 0
     matched_misses = 0
     unmatched_hits = 0
@@ -49,44 +50,57 @@ def correlate_compile_events(events: list[dict[str, Any]]) -> dict[str, Any]:
     effective_compile = 0
 
     for event in events:
-        op = parse_operation_identity(event.get("message", ""))
-        if event.get("compile") and op:
-            compile_attempts.setdefault(op, []).append("pending")
-            compile_attempt_count += 1
+        message = str(event.get("message", ""))
+        op = parse_operation_identity(message)
+        is_compile = bool(event.get("compile"))
+        is_hit = bool(event.get("persistent_cache_hit"))
+        is_miss = bool(event.get("persistent_cache_miss"))
 
-    for event in events:
-        op = parse_operation_identity(event.get("message", ""))
-        if event.get("persistent_cache_hit") and op:
-            pending = compile_attempts.get(op, [])
+        if is_compile:
+            compile_attempt_count += 1
+            if op is None:
+                unparseable_compile_attempt_count += 1
+            else:
+                pending_by_op.setdefault(op, []).append("pending")
+
+        if is_hit:
+            pending = pending_by_op.get(op) if op is not None else None
             if pending:
                 pending.pop(0)
                 matched_hits += 1
             else:
                 unmatched_hits += 1
-        elif event.get("persistent_cache_miss") and op:
-            pending = compile_attempts.get(op, [])
+
+        if is_miss:
+            pending = pending_by_op.get(op) if op is not None else None
             if pending:
                 pending.pop(0)
                 matched_misses += 1
-                effective_compile += 1
             else:
                 unmatched_misses += 1
-                effective_compile += 1
+            effective_compile += 1
 
-    unresolved = sum(len(p) for p in compile_attempts.values())
+    unresolved = unparseable_compile_attempt_count + sum(
+        len(pending) for pending in pending_by_op.values()
+    )
+    persistent_cache_misses = matched_misses + unmatched_misses
+    hot_eligible = (
+        persistent_cache_misses == 0 and unresolved == 0 and effective_compile == 0
+    )
 
     return {
         "compile_attempt_count": compile_attempt_count,
         "persistent_cache_hits": matched_hits + unmatched_hits,
-        "persistent_cache_misses": matched_misses + unmatched_misses,
+        "persistent_cache_misses": persistent_cache_misses,
         "matched_cache_hit_count": matched_hits,
         "matched_cache_miss_count": matched_misses,
         "unmatched_cache_hit_count": unmatched_hits,
         "unmatched_cache_miss_count": unmatched_misses,
+        "unparseable_compile_attempt_count": unparseable_compile_attempt_count,
         "unresolved_compile_attempt_count": unresolved,
         "effective_compile_count": effective_compile,
-        "effective_compile_seconds": None if unresolved > 0 or effective_compile > 0 else 0.0,
-        "hot_eligible": unresolved == 0 and effective_compile == 0,
+        "effective_compile_seconds": 0.0 if hot_eligible else None,
+        "hot_eligible": hot_eligible,
     }
 
 
@@ -235,9 +249,13 @@ class CompilationEvidenceCapture:
             "matched_cache_miss_count": correlation["matched_cache_miss_count"],
             "unmatched_cache_hit_count": correlation["unmatched_cache_hit_count"],
             "unmatched_cache_miss_count": correlation["unmatched_cache_miss_count"],
+            "unparseable_compile_attempt_count": correlation[
+                "unparseable_compile_attempt_count"
+            ],
             "unresolved_compile_attempt_count": correlation["unresolved_compile_attempt_count"],
             "effective_compile_count": correlation["effective_compile_count"],
             "effective_compile_seconds": correlation["effective_compile_seconds"],
+            "hot_eligible": correlation["hot_eligible"],
         }
 
 
@@ -255,28 +273,36 @@ def adjudicate_hot_cache(
         for capture in captures
     )
 
-    def _effective_compile(capture: dict[str, Any]) -> int:
+    def _correlation_for(capture: dict[str, Any]) -> dict[str, Any] | None:
         events = capture.get("events")
         if isinstance(events, list) and events:
-            correlation = correlate_compile_events(events)
+            return correlate_compile_events(events)
+        return None
+
+    def _effective_compile(capture: dict[str, Any]) -> int:
+        correlation = _correlation_for(capture)
+        if correlation is not None:
             return correlation["effective_compile_count"]
         return capture.get(
             "effective_compile_count", capture.get("compile_event_count", 0)
         )
 
     def _unresolved(capture: dict[str, Any]) -> int:
-        events = capture.get("events")
-        if isinstance(events, list) and events:
-            correlation = correlate_compile_events(events)
+        correlation = _correlation_for(capture)
+        if correlation is not None:
             return correlation["unresolved_compile_attempt_count"]
         return capture.get("unresolved_compile_attempt_count", 0)
+
+    def _misses(capture: dict[str, Any]) -> int:
+        correlation = _correlation_for(capture)
+        if correlation is not None:
+            return correlation["persistent_cache_misses"]
+        return capture.get("persistent_cache_misses", 0)
 
     hot_zero_effective_compile = all(
         _effective_compile(capture) == 0 for capture in (hot1, hot2)
     )
-    hot_no_miss = all(
-        capture.get("persistent_cache_misses") == 0 for capture in (hot1, hot2)
-    )
+    hot_no_miss = all(_misses(capture) == 0 for capture in (hot1, hot2))
     hot_no_unresolved = all(
         _unresolved(capture) == 0 for capture in (hot1, hot2)
     )
