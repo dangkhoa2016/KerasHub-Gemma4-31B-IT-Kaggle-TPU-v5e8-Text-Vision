@@ -352,6 +352,214 @@ class ManagerLifecycleTests(unittest.TestCase):
         self.assertFalse(health["ready"])
         self.assertFalse(health["accepting_jobs"])
 
+    def test_restart_invalidates_stopping_generation_before_queued_events(self):
+        self.install_existing_worker()
+        self.install_start_fake()
+
+        def stop_worker(timeout):
+            self.manager._handle({
+                "type": "worker_state",
+                "worker_id": self.manager.WORKER_ID,
+                "generation": 1,
+                "pid": 123,
+                "state": "loading",
+            })
+            self.manager._handle({
+                "type": "worker_ready",
+                "worker_id": self.manager.WORKER_ID,
+                "generation": 1,
+                "pid": 123,
+                "metadata": {"device_count": 8},
+            })
+            self.manager._worker = None
+
+        self.manager._stop_worker = stop_worker
+
+        self.assertTrue(self.manager.restart_worker(False, 1))
+
+        health = self.manager.health()
+        self.assertEqual(self.manager._generation, 2)
+        self.assertEqual(health["state"], "restarting")
+        self.assertFalse(health["ready"])
+        self.assertFalse(health["accepting_jobs"])
+
+    def test_replacement_load_failure_leaves_manager_unavailable(self):
+        self.install_existing_worker()
+        replacement_started = threading.Event()
+        release_replacement_start = threading.Event()
+
+        def start_worker():
+            self.manager._generation += 1
+            generation = self.manager._generation
+            self.manager._worker = FakeProcess(self.events, f"worker-{generation}")
+            self.manager._worker_status[self.manager.WORKER_ID] = {
+                "worker_id": self.manager.WORKER_ID,
+                "generation": generation,
+                "state": "starting",
+            }
+            self.starts.append(self.manager._worker)
+            replacement_started.set()
+            self.assertTrue(release_replacement_start.wait(timeout=1))
+
+        self.manager._start_worker = start_worker
+        result = []
+        restart = threading.Thread(
+            target=lambda: result.append(self.manager.restart_worker(False, 1))
+        )
+        restart.start()
+        self.assertTrue(replacement_started.wait(timeout=1))
+        self.manager._handle({
+            "type": "worker_load_error", "worker_id": self.manager.WORKER_ID,
+            "generation": 2, "pid": 123, "error": "replacement load failed",
+        })
+        release_replacement_start.set()
+        restart.join(timeout=1)
+
+        health = self.manager.health()
+        self.assertEqual(result, [True])
+        self.assertEqual(len(self.starts), 1)
+        self.assertEqual(health["state"], "unavailable")
+        self.assertFalse(health["ready"])
+        self.assertFalse(health["accepting_jobs"])
+
+    def test_restart_during_busy_fails_job_before_replacement_starts(self):
+        self.install_existing_worker()
+        self.manager.store.put(Job("busy-job", "prompt", "", 16))
+        self.manager.store.mark_processing("busy-job", self.manager.WORKER_ID)
+        stop_entered = threading.Event()
+        release_stop = threading.Event()
+        replacement_started = threading.Event()
+
+        def stop_worker(timeout):
+            stop_entered.set()
+            self.assertTrue(release_stop.wait(timeout=1))
+            self.manager._worker = None
+
+        def start_worker():
+            self.manager._generation += 1
+            generation = self.manager._generation
+            self.manager._worker = FakeProcess(self.events, f"worker-{generation}")
+            self.manager._worker_status[self.manager.WORKER_ID] = {
+                "worker_id": self.manager.WORKER_ID,
+                "generation": generation,
+                "state": "starting",
+            }
+            self.starts.append(self.manager._worker)
+            replacement_started.set()
+
+        self.manager._stop_worker = stop_worker
+        self.manager._start_worker = start_worker
+        result = []
+        restart = threading.Thread(
+            target=lambda: result.append(self.manager.restart_worker(False, 1))
+        )
+        restart.start()
+        self.assertTrue(stop_entered.wait(timeout=1))
+        self.assertEqual(self.manager.store.get("busy-job").status, "failed")
+        self.assertEqual(self.manager.health()["state"], "restarting")
+        self.assertFalse(self.manager.restart_worker(False, 1))
+        release_stop.set()
+        self.assertTrue(replacement_started.wait(timeout=1))
+        restart.join(timeout=1)
+
+        self.assertEqual(result, [False])
+        self.assertEqual(len(self.starts), 1)
+        self.assertEqual(self.manager._generation, 2)
+
+    def test_failed_load_is_unavailable(self):
+        self.manager._generation = 4
+        self.manager._worker_status[self.manager.WORKER_ID] = {
+            "worker_id": self.manager.WORKER_ID,
+            "generation": 4,
+            "state": "loading",
+        }
+        self.manager._handle({
+            "type": "worker_load_error", "worker_id": self.manager.WORKER_ID,
+            "generation": 4, "pid": 123, "error": "load failed",
+        })
+
+        health = self.manager.health()
+        self.assertEqual(health["state"], "unavailable")
+        self.assertFalse(health["ready"])
+
+    def test_health_exposes_ready_worker_model_metadata_for_fresh_acceptance(self):
+        self.manager._generation = 4
+        self.manager._worker_status[self.manager.WORKER_ID] = {
+            "worker_id": self.manager.WORKER_ID,
+            "generation": 4,
+            "state": "ready",
+            "metadata": {
+                "device_count": 8,
+                "model_class": "Gemma4CausalLM",
+                "backbone_class": "Gemma4Backbone",
+                "dtype": "bfloat16",
+                "mesh_shape": [1, 8],
+                "mesh_axis_names": ["batch", "model"],
+                "strict_weight_loading": True,
+                "skip_mismatch": False,
+                "layout_profile": "gemma4_31b_dense_candidate_a_v1",
+                "checkpoint_load_strategy": "keras_hub_native_preset_loader",
+                "candidate_a_verified": True,
+            },
+        }
+
+        runtime = self.manager.health()["runtime"]
+
+        self.assertEqual(runtime["model_class"], "Gemma4CausalLM")
+        self.assertEqual(runtime["backbone_class"], "Gemma4Backbone")
+        self.assertEqual(runtime["mesh_shape"], [1, 8])
+        self.assertEqual(runtime["mesh_axis_names"], ["batch", "model"])
+        self.assertTrue(runtime["candidate_a_verified"])
+
+    def test_restart_joins_old_worker_before_new_start(self):
+        self.install_existing_worker()
+        self.install_start_fake()
+
+        self.assertTrue(self.manager.restart_worker(False, 1))
+
+        self.assertLess(
+            self.events.index(("join", "old")),
+            self.events.index(("start", "worker-2")),
+        )
+
+    def test_restart_joins_dead_old_worker_before_new_start(self):
+        process = self.install_existing_worker()
+        process.alive = False
+        self.install_start_fake()
+
+        self.assertTrue(self.manager.restart_worker(False, 1))
+
+        self.assertIn(("join", "old"), self.events)
+        self.assertLess(
+            self.events.index(("join", "old")),
+            self.events.index(("start", "worker-2")),
+        )
+
+    def test_shutdown_joins_worker(self):
+        self.install_existing_worker()
+
+        self.assertTrue(self.manager.shutdown(False, 1))
+
+        self.assertIn(("join", "old"), self.events)
+
+    def test_shutdown_is_idempotent(self):
+        self.install_existing_worker()
+
+        self.assertTrue(self.manager.shutdown(False, 1))
+        self.assertTrue(self.manager.shutdown(False, 1))
+
+        self.assertEqual(self.events.count(("join", "old")), 1)
+
+    def test_shutdown_does_not_spawn_replacement(self):
+        process = self.install_existing_worker()
+        self.install_start_fake()
+
+        self.assertTrue(self.manager.shutdown(False, 1))
+        self.manager._monitor(process, 1)
+
+        self.assertEqual(self.starts, [])
+        self.assertEqual(self.manager._automatic_restarts_used, 0)
+
 
 if __name__ == "__main__":
     unittest.main()
