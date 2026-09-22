@@ -1,0 +1,47 @@
+name: Bug report / Báo cáo lỗi
+description: Report a reproducible problem / Báo cáo một lỗi tái hiện được
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve the project.
+        Cảm ơn bạn đã giúp cải thiện dự án.
+  - type: input
+    id: environment
+    attributes:
+      label: Environment / Môi trường
+      description: >
+        Kaggle or local, Python version, accelerator, dependency versions.
+        Kaggle hay chạy cục bộ, phiên bản Python, accelerator, phiên bản phụ thuộc.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps / Các bước tái hiện
+      description: >
+        Provide the smallest reproducible sequence.
+        Hãy đưa chuỗi tối thiểu có thể tái hiện.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior / Hành vi mong đợi
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior / Hành vi thực tế
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs / Nhật ký liên quan
+      description: >
+        Remove API keys, tokens and other secrets before posting.
+        Hãy gỡ API key, token và mọi bí mật trước khi đăng.

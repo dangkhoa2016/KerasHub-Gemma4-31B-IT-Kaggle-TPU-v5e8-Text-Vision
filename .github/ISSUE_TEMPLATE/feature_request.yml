@@ -1,0 +1,24 @@
+name: Feature request / Đề xuất tính năng
+description: Propose a focused enhancement / Đề xuất một cải tiến cụ thể
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / Vấn đề
+      description: >
+        What limitation or workflow problem should this solve?
+        Vấn đề hay hạn chế nào cần giải quyết?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution / Giải pháp đề xuất
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered / Các phương án đã cân nhắc
