@@ -1,5 +1,12 @@
 KerasHub Gemma 4 31B Instruct on Kaggle TPU v5e-8
 
 This source distribution does not include model weights.
-Runtime status is intentionally marked unvalidated until real Kaggle TPU v5e-8
-evidence is produced.
+
+The reference runtime documented in docs/qualification.md was qualified on
+Kaggle TPU v5e-8 with eight TPU devices, mesh [1,8] and bfloat16 compute, using
+Keras 3.15.1, KerasHub 0.31.1, JAX 0.10.2, JAXLIB 0.10.2 and libtpu 0.0.17.
+
+Qualification is scoped to that runtime version set and workload. It is not a
+guarantee for other accelerators, other dependency versions, or different prompt
+lengths, bucket sizes and modalities. The recorded measurements are published in
+evidence/qualification.json.
