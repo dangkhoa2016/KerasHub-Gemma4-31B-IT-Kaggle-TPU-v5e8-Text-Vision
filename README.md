@@ -1,102 +1,117 @@
-# KerasHub Gemma 4 31B Instruct on Kaggle TPU v5e-8 — Text + Vision
+# KerasHub Gemma 4 31B Instruct on Kaggle TPU v5e-8
 
-Standalone successor project derived from the architecture lessons of the
-completed TranslateGemma 27B project. This is a **new independent source tree**.
+[![CI](https://github.com/dangkhoa2016/KerasHub-Gemma4-31B-IT-Kaggle-TPU-v5e8-Text-Vision/actions/workflows/ci.yml/badge.svg)](https://github.com/dangkhoa2016/KerasHub-Gemma4-31B-IT-Kaggle-TPU-v5e8-Text-Vision/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://www.python.org/)
+[![Backend](https://img.shields.io/badge/Backend-JAX-5A45FF.svg)](https://jax.readthedocs.io/)
+[![KerasHub](https://img.shields.io/badge/KerasHub-Gemma%204-FF6F00.svg)](https://keras.io/keras_hub/)
+[![TPU](https://img.shields.io/badge/Kaggle%20TPU-v5e--8-20A464.svg)](https://www.kaggle.com/)
+[![English](https://img.shields.io/badge/lang-English-1f6feb.svg)](README.md)
+[![Tiếng Việt](https://img.shields.io/badge/lang-Ti%E1%BA%BFng%20Vi%E1%BB%87t-da251d.svg)](README.vi.md)
 
-> **Current authority:** G0-G10 are closed, the post-G10 generation-loop
-> corrective is TPU-qualified, and the corrective source has passed public CI.
-> Public v1.0.0 publication remains intentionally open until the final
-> publication review is complete.
+Production-oriented Gemma 4 31B Instruct inference for Kaggle TPU v5e-8,
+implemented with KerasHub, Keras, JAX, ModelParallel sharding, text + vision
+generation, async jobs, authenticated REST endpoints, and persistent JAX
+compilation caching.
 
-## Current status
+> This is an independent engineering project built around the upstream Gemma
+> model and KerasHub runtime. It is not an official Google, Kaggle, Keras, or
+> OpenAI release.
 
-```text
-G0 standalone source tree                    CLOSED
-G1 TPU/model preflight                       CLOSED
-R3 sharded checkpoint assignment             CLOSED/PASS
-G2 strict checkpoint load                    CLOSED/PASS
-G3 text generation                           CLOSED/PASS
-G4 generation architecture characterization  CLOSED/PASS
-G5 image generation                          CLOSED/PASS (NATIVE_VISION)
-G6 final sharding + memory evidence           CLOSED/PASS
-G7 REST server                               CLOSED/PASS
-G8 async/cold compile/lifecycle              CLOSED/PASS
-G9 PRIME/HOT                                 CLOSED/PASS
-G10 fresh Restart Session -> Run All         CLOSED/PASS
-Post-G10 generation-loop corrective          CLOSED/PASS
-G11 history/source hardening                 CLOSED/PASS
-G12 public v1.0.0                            NOT RELEASED
-```
+## Highlights
 
-The remaining work is publication-only:
+- Gemma 4 31B Instruct via `keras_hub.models.Gemma4CausalLM`
+- one logical model sharded across 8 TPU devices
+- BF16 model policy and strict checkpoint loading
+- text and image-conditioned text generation
+- stable JAX decode loop for hot-request executable reuse
+- synchronous and asynchronous REST APIs
+- request IDs, API-key authentication, restart secret, queue limits, TTLs
+- Python and Node.js clients
+- Kaggle TPU helper scripts and production notebook
+- bilingual English / Vietnamese documentation
 
-```text
-STEP 1  FINAL PUBLICATION REVIEW   verify docs, source authority, CI and release metadata
-STEP 2  PUBLIC v1.0.0             create tag/release only after the review closes
-```
-
-The production corrective keeps `run_eagerly=True` and uses a stable JAX
-`lax.while_loop` callable identity inside `StableGemma4GreedySampler`.
-In the production-source TPU qualification, the first identical request paid
-the compile cost, while the second identical hot request reused the executable:
+## Qualified runtime
 
 ```text
-warm request              541.409 s
-hot identical request       5.239 s
-warm-to-hot speedup        103.34x
-hot compile attempts         0
-same output                 true
+Model             gemma4_instruct_31b
+Backend           JAX
+Keras             3.15.1
+KerasHub          0.31.1
+JAX / JAXLIB      0.10.2 / 0.10.2
+libtpu            0.0.17
+Accelerator       Kaggle TPU v5e-8
+TPU devices       8
+Mesh              [1, 8]
+Axes              [batch, model]
+Dtype             bfloat16
 ```
 
-These are qualification results for the tested request and runtime, not a
-general latency guarantee for every prompt length or multimodal request.
+The final production-source qualification recorded a first-request compile
+cost of about 541.4 seconds and an identical hot request of about 5.24 seconds,
+with no new compile event on the hot request. These figures describe the
+qualified request and runtime; they are not universal latency guarantees.
 
-## Target
-
-```text
-preset          gemma4_instruct_31b
-model class     keras_hub.models.Gemma4CausalLM
-backend         JAX
-hardware        Kaggle TPU v5e-8 / v5litepod-8
-TPU devices     8
-logical model   1
-mesh            [1,8]
-axes            [batch, model]
-dtype           bfloat16
-load            strict / skip_mismatch=False
-text            yes
-image/vision    yes
-audio           no for this 31B target
-```
-
-The old Gemma3/TranslateGemma split-prefill/decode engine is not copied blindly.
-Gemma 4 keeps KerasHub-native cache/prefill semantics, while the generation loop
-uses a stable greedy sampler so hot requests can reuse the compiled JAX
-while-loop executable instead of rebuilding it per request.
-
-## First run
+## Quick start
 
 ```bash
+git clone https://github.com/dangkhoa2016/KerasHub-Gemma4-31B-IT-Kaggle-TPU-v5e8-Text-Vision.git
+cd KerasHub-Gemma4-31B-IT-Kaggle-TPU-v5e8-Text-Vision
+
 cp .env.example .env
-bash scripts/run_g0_g2.sh
+# Add API_KEY and RESTART_SECRET to .env.
+
+bash scripts/start.sh
+python scripts/wait_ready.py
 ```
 
-Do not start REST acceptance before `artifacts/g0-g2/strict-load.json` passes.
+The Kaggle environment must have the Gemma 4 31B Keras preset attached and a
+TPU v5e-8 / v5litepod-8 accelerator enabled. See
+[docs/kaggle-notebook.md](docs/kaggle-notebook.md) before the first TPU run.
 
-## REST endpoints
+## API example
+
+```bash
+curl -sS http://127.0.0.1:7860/generate \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "Explain TPU model parallelism in three sentences.",
+    "max_new_tokens": 96
+  }'
+```
+
+Image-conditioned generation is available through `/generate/image` and
+`/generate/image/async`.
+
+## Documentation
+
+| Topic | English | Tiếng Việt |
+|---|---|---|
+| Documentation index | [docs/README.md](docs/README.md) | [docs/README.vi.md](docs/README.vi.md) |
+| Usage | [usage](docs/usage.md) | [sử dụng](docs/usage.vi.md) |
+| Setup guide | [guide](docs/guide.md) | [hướng dẫn](docs/guide.vi.md) |
+| REST API | [api](docs/api.md) | [api](docs/api.vi.md) |
+| Architecture | [architecture](docs/architecture.md) | [kiến trúc](docs/architecture.vi.md) |
+| Kaggle notebook | [kaggle notebook](docs/kaggle-notebook.md) | [kaggle notebook](docs/kaggle-notebook.vi.md) |
+| Limitations | [limitations](docs/limitations.md) | [giới hạn](docs/limitations.vi.md) |
+| Technical knowledge | [knowledge](docs/knowledge.md) | [kiến thức](docs/knowledge.vi.md) |
+| Troubleshooting | [troubleshooting](docs/troubleshooting.md) | [xử lý sự cố](docs/troubleshooting.vi.md) |
+| Qualification evidence | [qualification](docs/qualification.md) | [qualification](docs/qualification.vi.md) |
+
+## Repository layout
 
 ```text
-GET  /
-GET  /health/live
-GET  /health/ready
-GET  /info
-POST /generate
-POST /generate/async
-POST /generate/image
-POST /generate/image/async
-GET  /result/<job_id>
-POST /restart
+.github/      GitHub workflows, templates and repository policy
+clients/      Python and Node.js clients
+docs/         bilingual public documentation
+evidence/     compact public qualification summary
+notebooks/    Kaggle production notebook
+scripts/      operational and verification helpers
+src/          production server and TPU runtime
+tests/        behavior-focused unit and contract tests
 ```
 
-See `docs/KAGGLE.md`, `docs/ARCHITECTURE.md`, `docs/API.md`, and
-`docs/ROADMAP.md`.
+## License
+
+MIT. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
