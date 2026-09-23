@@ -5,11 +5,9 @@ cd "$ROOT"
 export PYTHONPATH="$ROOT/src${PYTHONPATH:+:$PYTHONPATH}"
 
 python3 -m unittest discover -s tests -v
-python3 -m compileall -q \
-  src scripts clients/python
+python3 -m compileall -q src scripts clients/python
 
-bash -n scripts/configure_kaggle_tpu.sh
-bash -n scripts/run_g0_g2.sh
-bash -n scripts/start.sh
-bash -n scripts/stop.sh
-bash -n scripts/status.sh
+for script in   scripts/_common.sh   scripts/configure_kaggle_tpu.sh   scripts/run_tunnel.sh   scripts/start.sh   scripts/status.sh   scripts/stop.sh   scripts/stop_tunnel.sh
+do
+  bash -n "$script"
+done
