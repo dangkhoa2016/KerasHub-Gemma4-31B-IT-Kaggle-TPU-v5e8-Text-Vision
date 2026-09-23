@@ -15,6 +15,7 @@ from .generation import (
 )
 from .distribution import LAYOUT_PROFILE
 from .sharded_checkpoint import sharded_checkpoint_assignment
+from .stable_greedy_sampler import make_stable_gemma4_greedy_sampler
 
 
 def _discover_cgroup_memory_current_path():
@@ -230,7 +231,10 @@ class Gemma4TPUEngine:
                 dtype=self.dtype,
             )
 
-        self.model.compile(sampler="greedy", run_eagerly=True)
+        self.model.compile(
+            sampler=make_stable_gemma4_greedy_sampler(),
+            run_eagerly=True,
+        )
         self.preprocessor = self.model.preprocessor
 
         backbone = self.model.backbone

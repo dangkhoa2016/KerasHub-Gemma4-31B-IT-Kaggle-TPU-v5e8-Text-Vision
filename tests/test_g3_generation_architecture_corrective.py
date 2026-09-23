@@ -30,7 +30,8 @@ class GenerationArchitectureCorrectiveTests(unittest.TestCase):
         text = (ROOT / "src/gemma4_server/tpu/engine.py").read_text(
             encoding="utf-8"
         )
-        self.assertIn('self.model.compile(sampler="greedy", run_eagerly=True)', text)
+        self.assertIn("make_stable_gemma4_greedy_sampler()", text)
+        self.assertIn("run_eagerly=True", text)
 
     def test_authority_generation_makes_one_exact_native_call(self):
         engine = object.__new__(Gemma4TPUEngine)
