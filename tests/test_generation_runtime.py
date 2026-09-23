@@ -10,10 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT / "src") not in sys.path:
     sys.path.insert(0, str(ROOT / "src"))
 
-from gemma4_server.tpu.engine import (  # noqa: E402
-    Gemma4TPUEngine,
-    post_load_host_cleanup,
-)
+from gemma4_server.tpu.engine import Gemma4TPUEngine, post_load_host_cleanup
 
 
 class FakeModel:
@@ -25,15 +22,15 @@ class FakeModel:
         return " generated text "
 
 
-class GenerationArchitectureCorrectiveTests(unittest.TestCase):
-    def test_engine_compiles_generation_without_jax_jit_peak(self):
+class GenerationRuntimeTests(unittest.TestCase):
+    def test_engine_uses_stable_sampler_without_outer_jit(self):
         text = (ROOT / "src/gemma4_server/tpu/engine.py").read_text(
             encoding="utf-8"
         )
         self.assertIn("make_stable_gemma4_greedy_sampler()", text)
         self.assertIn("run_eagerly=True", text)
 
-    def test_authority_generation_makes_one_exact_native_call(self):
+    def test_exact_length_generation_makes_one_native_call(self):
         engine = object.__new__(Gemma4TPUEngine)
         engine.model = FakeModel()
         engine.preprocessor = object()
@@ -48,13 +45,7 @@ class GenerationArchitectureCorrectiveTests(unittest.TestCase):
         _, kwargs = engine.model.calls[0]
         self.assertEqual(kwargs["max_length"], 11)
         self.assertTrue(kwargs["strip_prompt"])
-        self.assertNotIn("max_new_tokens", kwargs)
         self.assertEqual(metadata["max_new_tokens"], 1)
-        self.assertEqual(metadata["authority_max_length"], 11)
-        self.assertEqual(
-            metadata["authority_generation_path"],
-            "EXACT_LENGTH_AUTHORITY_PATH",
-        )
 
     def test_post_load_cleanup_is_non_fatal_when_trim_is_unavailable(self):
         with mock.patch("gemma4_server.tpu.engine.gc.collect", return_value=7):
@@ -75,16 +66,14 @@ class GenerationArchitectureCorrectiveTests(unittest.TestCase):
             with mock.patch(
                 "gemma4_server.tpu.engine._CGROUP_MEMORY_CURRENT_PATH",
                 cgroup / "memory.current",
+            ), mock.patch(
+                "gemma4_server.tpu.engine._read_rss_kib",
+                side_effect=[100, 90, 80],
+            ), mock.patch(
+                "gemma4_server.tpu.engine.ctypes.CDLL",
+                side_effect=OSError("libc unavailable"),
             ):
-                with mock.patch(
-                    "gemma4_server.tpu.engine._read_rss_kib",
-                    side_effect=[100, 90, 80],
-                ):
-                    with mock.patch(
-                        "gemma4_server.tpu.engine.ctypes.CDLL",
-                        side_effect=OSError("libc unavailable"),
-                    ):
-                        result = post_load_host_cleanup()
+                result = post_load_host_cleanup()
 
         self.assertEqual(result["post_load_rss_before_cleanup_kib"], 100)
         self.assertEqual(result["post_load_rss_after_gc_kib"], 90)
