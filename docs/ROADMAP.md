@@ -11,64 +11,71 @@ G3=CLOSED/PASS
 G3_TEXT_GENERATION=PASS
 G3_IMMUTABLE=true
 G4=CLOSED/PASS
-G4_ENTRY_ELIGIBLE=true
-G4_RECOMMENDED_PATH=SPLIT
-G4_STARTED=false
-G4_IMMUTABLE=true
-G5_ENTRY_ELIGIBLE=true
 G5=CLOSED/PASS
 G5_IMAGE_GENERATION=PASS
 G5_PATH=NATIVE_VISION
-G5_IMMUTABLE=true
-G6_ENTRY_ELIGIBLE=true
-G6_STARTED=true
 G6=CLOSED/PASS
 G6_FINAL_SHARDING=PASS
 G6_FINAL_MEMORY_EVIDENCE=PASS
-G6_STATUS=CLOSED
-G7_ENTRY_ELIGIBLE=true
-G7_STARTED=true
 G7=CLOSED/PASS
 G7_REST_ACCEPTANCE=PASS
-G8_ENTRY_ELIGIBLE=true
+G8=CLOSED/PASS
 G8_FINAL_CLOSEOUT=PASS
 G8_LIVE_GENERATION_PASS=true
-G9_ENTRY_ELIGIBLE=true
-G9_STARTED=false
-G10_STARTED=false
-G11_CPU_PREPARED=true
+G9=CLOSED/PASS
+G10=CLOSED/PASS
+POST_G10_GENERATION_LOOP_CORRECTIVE=CLOSED/PASS
+G11=CLOSED/PASS
 TAG=false
 RELEASE=false
 PUBLIC_V1_0_0=false
 ```
 
-## Final CPU / TPU boundary
+## Publication boundary
 
-The remaining project is intentionally limited to two operational phases:
-
-```text
-STEP 1  FINAL CPU PREP       source/history/release preparation
-STEP 2  FINAL TPU ONE-SHOT   G9 PRIME/HOT and G10 fresh-session Run All
-```
-
-G0-G8 are closed. G9 and G10 are not complete and must be run only by the
-final TPU one-shot using the exact frozen Git SHA. G11 preparation is allowed
-in the CPU phase; G12 publication is not authorized until G10 passes.
+All runtime acceptance gates through G10 are closed. The post-G10 generation
+latency corrective is also closed and TPU-qualified. The remaining work is
+limited to final publication review and G12 publication.
 
 ```text
 G0  standalone source identity
 G1  TPU v5e-8 preflight + model discovery
 G2  Gemma4 31B ModelParallel strict-load proof
 G3  shortest possible text generation proof
-G4  native-vs-split generation characterization
+G4  generation architecture characterization
 G5  image-conditioned generation proof
 G6  final sharding + memory evidence
 G7  REST server acceptance
 G8  async/cold compile + restart/lifecycle acceptance
 G9  PRIME/HOT acceptance
 G10 fresh Kaggle Restart Session -> Run All
-G11 history/source hardening
+G11 history/source hardening and post-corrective authority
 G12 public v1.0.0
 ```
 
-Do not publish v1.0.0 before G10 closes.
+## Post-G10 corrective authority
+
+The production engine keeps `run_eagerly=True` and uses
+`StableGemma4GreedySampler` to keep the JAX `lax.while_loop` callable
+identity stable across requests.
+
+The production-source qualification recorded:
+
+```text
+model_load_count=1
+same_model_object=true
+same_output=true
+warm_seconds=541.409262515
+hot_seconds=5.239080924
+speedup=103.340503873
+hot_compile_attempt_count=0
+hot_compile_event_count=0
+oom_counter_increase=0
+watchdog_triggered=false
+```
+
+No additional TPU rerun is required for documentation-only publication
+preparation as long as production source remains unchanged.
+
+Do not create the public v1.0.0 tag/release until the final publication review
+confirms documentation, CI, source authority, and release metadata are aligned.
