@@ -170,8 +170,8 @@ def summarize_sharding(model, sample_limit=32):
     }
 
 class Gemma4TPUEngine:
-    # G3/G5 use native KerasHub generation only for characterization.
-    # This is not claimed equivalent to the predecessor split engine.
+    # KerasHub provides native prefill/cache semantics; the stable sampler
+    # preserves reusable JAX decode-loop callable identities across requests.
 
     def __init__(
         self,
@@ -216,11 +216,8 @@ class Gemma4TPUEngine:
         task_config = path / "task.json"
         started = time.perf_counter()
 
-        # Corrective R1: model.weights.json is a backbone checkpoint.  The
-        # KerasHub preset loader knows whether task.json exists and always
-        # routes model weights through task.backbone.  Loading the same index
-        # directly on the whole Gemma4CausalLM task creates an incompatible
-        # object hierarchy and caused the R0 1187-object strict-load failure.
+        # model.weights.json is a backbone checkpoint. The KerasHub preset
+        # loader owns the task/backbone mapping and preserves strict loading.
         self._phase("native_preset_strict_load")
         with self.distribution.scope(), sharded_checkpoint_assignment(
             event_callback=self.r3_event_callback,
@@ -283,8 +280,8 @@ class Gemma4TPUEngine:
             "weights_entry": str(entry),
             "layout_profile": LAYOUT_PROFILE,
             "candidate_a_verified": True,
-            "generation_mode": "keras_hub_native_unvalidated",
-            "runtime_validation": "NOT_YET_PROVEN",
+            "generation_mode": "stable_greedy_jax",
+            "runtime_validation": "QUALIFIED_REFERENCE_RUNTIME",
             **sharding,
             **self.post_load_cleanup,
         }

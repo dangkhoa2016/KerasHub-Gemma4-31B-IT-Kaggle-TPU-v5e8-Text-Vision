@@ -113,7 +113,7 @@ class Config:
 
         mode = os.environ.get("GENERATION_MODE", "native").strip().lower()
         if mode != "native":
-            raise ValueError("Only GENERATION_MODE=native is implemented before G4")
+            raise ValueError("Only GENERATION_MODE=native is supported")
 
         default_tokens = _int("DEFAULT_OUTPUT_TOKENS", 128, 1)
         max_tokens = _int("MAX_OUTPUT_TOKENS", 512, 1)

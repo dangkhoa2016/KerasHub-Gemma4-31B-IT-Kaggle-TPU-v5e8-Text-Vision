@@ -56,12 +56,12 @@ def build_info_payload(health):
             "async_jobs": True,
             "request_ids": True,
             "generation_mode": (
-                "keras_hub_native_unvalidated"
+                "stable_greedy_jax"
             ),
         },
         "validation_notice": (
-            "Development runtime until fresh Kaggle TPU "
-            "evidence closes G2-G5."
+            "Qualified reference runtime on Kaggle TPU v5e-8; "
+            "see docs/qualification.md."
         ),
     }
 
@@ -277,7 +277,7 @@ def create_app(runtime: Runtime):
         return jsonify({
             "service":"Gemma 4 31B Instruct",
             "api_version":API_VERSION,
-            "runtime_validation":"NOT_YET_PROVEN",
+            "runtime_validation":"QUALIFIED_REFERENCE_RUNTIME",
             "endpoints":[
                 "/health/live",
                 "/health/ready",

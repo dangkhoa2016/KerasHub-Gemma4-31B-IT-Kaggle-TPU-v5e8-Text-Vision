@@ -49,11 +49,10 @@ def plan_authority_generation(
     max_new_tokens: int,
     max_generation_length: int,
 ):
-    """Plan the narrow G3 authority call at its exact required length.
+    """Plan an exact-length qualification call without production bucketing.
 
-    The production bucket planner remains deliberately separate.  This path
-    is only for a single authority invocation whose prompt and completion
-    lengths are already fixed and source-verified.
+    The production bucket planner remains deliberately separate. This helper
+    is retained for reproducible qualification and source-level tests.
     """
     prompt_tokens = int(prompt_tokens)
     max_new_tokens = int(max_new_tokens)
