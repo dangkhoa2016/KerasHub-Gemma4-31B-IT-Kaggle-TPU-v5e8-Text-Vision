@@ -4,4 +4,4 @@ keras-nlp==0.29.1
 jax==0.10.2
 jaxlib==0.10.2
 numpy==2.5.0
-libtpu==0.0.17
+libtpu==0.0.48
