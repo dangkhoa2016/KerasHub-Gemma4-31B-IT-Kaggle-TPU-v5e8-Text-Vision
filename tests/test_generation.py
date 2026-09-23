@@ -1,6 +1,7 @@
 from __future__ import annotations
 import os
 import sys
+import numpy as np
 from unittest.mock import patch
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
@@ -8,6 +9,7 @@ if str(ROOT/"src") not in sys.path:
     sys.path.insert(0,str(ROOT/"src"))
 
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 import gemma4_server.core.config as config_module
 from gemma4_server.tpu.generation import (
@@ -247,10 +249,14 @@ class T(unittest.TestCase):
         )
         engine.preprocessor = FakePreprocessor()
 
-        prompt_tokens = engine._preprocess_prompt_tokens(
-            {"prompts": "<|image|>", "images": object()},
-            sequence_length=512,
+        fake_keras = SimpleNamespace(
+            ops=SimpleNamespace(convert_to_numpy=np.asarray)
         )
+        with patch.dict(sys.modules, {"keras": fake_keras}):
+            prompt_tokens = engine._preprocess_prompt_tokens(
+                {"prompts": "<|image|>", "images": object()},
+                sequence_length=512,
+            )
 
         self.assertEqual(prompt_tokens, 512)
         self.assertTrue(engine._last_vision_conditioning_present)

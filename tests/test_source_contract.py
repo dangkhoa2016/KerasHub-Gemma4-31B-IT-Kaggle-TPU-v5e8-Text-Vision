@@ -100,3 +100,10 @@ class T(unittest.TestCase):
         )
         self.assertIn("gc.collect()", text)
         self.assertIn("malloc_trim", text)
+
+    def test_engine_metadata_records_candidate_a_and_tpu_backend(self):
+        text = (ROOT / "src/gemma4_server/tpu/engine.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('"candidate_a_verified": True', text)
+        self.assertIn('"jax_default_backend": jax.default_backend()', text)
