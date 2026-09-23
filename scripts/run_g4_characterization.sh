@@ -10,7 +10,7 @@ MODEL_PRESET="gemma4_instruct_31b"
 MINIMUM_AUTHORITY_MEMORY_GIB=300
 EXPECTED_TPU_DEVICES=8
 G4_TPU_ATTEMPTS="${G4_TPU_ATTEMPT_NUMBER:-1}"
-G3_ARCHIVE="/kaggle/working/gemma4-31b-vnext-g3-authority-20260913T225039Z.tar.gz"
+G3_ARCHIVE="${G3_ARCHIVE:-$PROJECT_ROOT/artifacts/g3/gemma4-31b-vnext-g3-authority-20260913T225039Z.tar.gz}"
 G3_ARCHIVE_SHA256="475c940baf60302fd0f03e5f4b1a156696598d51162310ff168283551d6bb38e"
 
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
@@ -314,16 +314,14 @@ if [[ ! -s "$evidence_dir/09-g4-result.json" ]]; then
   write_failure_result G4_AUTHORITY_RESULT_MISSING
 fi
 python3 - "$evidence_dir/12-native-vs-split-comparison.json" \
-  "$evidence_dir/09-g4-result.json" "$oom_delta" <<'PY'
+  "$evidence_dir/09-g4-result.json" "$oom_delta" "$G3_ARCHIVE" <<'PY'
 import json
 import sys
 from pathlib import Path
 from scripts.g4_evidence import native_baseline_from_archive, write_comparison
 
-comparison_path, result_path, oom_delta = sys.argv[1:]
-native = native_baseline_from_archive(
-    "/kaggle/working/gemma4-31b-vnext-g3-authority-20260913T225039Z.tar.gz"
-)
+comparison_path, result_path, oom_delta, archive_path = sys.argv[1:]
+native = native_baseline_from_archive(archive_path)
 split = json.loads(Path(result_path).read_text(encoding="utf-8"))
 write_comparison(comparison_path, native, split, split_host_oom_delta=int(oom_delta))
 PY
