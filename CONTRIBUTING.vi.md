@@ -32,4 +32,5 @@ runtime tái lập được và bằng chứng đo được. Xem
 ## Ngôn ngữ
 
 Nội dung tài liệu công khai phải có cả bản tiếng Anh và tiếng Việt trong cùng
-một commit. Xem [README.vi.md](README.vi.md) để biết quy ước song ngữ.
+một commit. Chạy `python3 scripts/validate_public_tree.py` để kiểm tra các cặp
+tài liệu song ngữ hiện có trước khi mở pull request.

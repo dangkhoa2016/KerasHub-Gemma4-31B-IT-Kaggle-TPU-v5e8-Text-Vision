@@ -166,8 +166,12 @@ def check_markdown_links(errors: list[str]) -> None:
 
 def check_bilingual_pairs(errors: list[str]) -> None:
     for name in BILINGUAL_ROOT_DOCUMENTS:
-        if not (ROOT / f"{name[:-3]}.vi.md").is_file():
+        english = ROOT / name
+        vietnamese = ROOT / f"{name[:-3]}.vi.md"
+        if english.is_file() and not vietnamese.is_file():
             errors.append(f"missing Vietnamese counterpart for {name}")
+        elif vietnamese.is_file() and not english.is_file():
+            errors.append(f"missing English counterpart for {vietnamese.name}")
     for directory in BILINGUAL_DIRECTORIES:
         base = ROOT / directory
         if not base.is_dir():
