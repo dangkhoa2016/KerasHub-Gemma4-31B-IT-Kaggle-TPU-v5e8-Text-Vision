@@ -1,7 +1,7 @@
-# Qualified Kaggle TPU v5e-8 runtime baseline.
-# Every entry is exact-pinned because the runtime authority contract rejects
-# ranges. The framework pins match docs/qualification.md and
-# evidence/qualification.json; numpy is pinned to match requirements.txt.
+# Kaggle TPU v5e-8 runtime candidate pins.
+# Every entry is exact-pinned so the next qualification run is reproducible.
+# docs/qualification.md and evidence/qualification.json preserve the last completed
+# TPU qualification and must only be updated after a fresh TPU execution.
 # The full application install is requirements.txt.
 keras==3.15.1
 keras-hub==0.32.0
