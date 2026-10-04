@@ -4,7 +4,7 @@ import importlib.metadata as md
 import os, subprocess, sys
 
 expected = os.environ.get(
-    "EXPECTED_LIBTPU_VERSION", "0.0.17"
+    "EXPECTED_LIBTPU_VERSION", "0.0.49"
 ).strip()
 mode = os.environ.get(
     "INSTALL_LIBTPU_IF_MISSING", "auto"
@@ -15,22 +15,19 @@ try:
 except md.PackageNotFoundError:
     current = None
 
-if current:
-    print(f"[libtpu] existing runtime retained: {current}")
-    if current != expected:
-        print(
-            f"[libtpu] advisory: reference={expected}, "
-            f"existing={current}"
-        )
+if current == expected:
+    print(f"[libtpu] expected runtime already installed: {current}")
     raise SystemExit(0)
 
 if mode in {"false","0","no"}:
+    state = f"installed={current}" if current else "missing"
     raise SystemExit(
-        "libtpu missing and installation disabled"
+        f"libtpu {state}; expected={expected}; installation disabled"
     )
 
+action = "upgrading" if current else "installing"
 print(
-    f"[libtpu] installing {expected} without dependencies"
+    f"[libtpu] {action} to {expected} without dependencies"
 )
 subprocess.run([
     sys.executable,

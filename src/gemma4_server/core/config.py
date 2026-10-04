@@ -147,7 +147,7 @@ class Config:
             max_store_size=_int("MAX_STORE_SIZE", 500, 1),
             result_ttl_seconds=_float("RESULT_TTL_SECONDS", 3600, 1),
             request_timeout=_float("REQUEST_TIMEOUT", 900, 1),
-            worker_load_timeout=_float("WORKER_LOAD_TIMEOUT", 1800, 1),
+            worker_load_timeout=_float("WORKER_LOAD_TIMEOUT", 3600, 1),
             shutdown_timeout=_float("SHUTDOWN_TIMEOUT", 300, 1),
             max_worker_restarts=_int("MAX_WORKER_RESTARTS", 1, 0),
             memory_guard_gib=_float("MEMORY_GUARD_GIB", 300, 1),

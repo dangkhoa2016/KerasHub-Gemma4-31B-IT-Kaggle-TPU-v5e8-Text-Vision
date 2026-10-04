@@ -35,6 +35,10 @@ class T(unittest.TestCase):
              ):
             return config_module.Config.from_env()
 
+    def test_production_default_allows_one_hour_for_worker_load(self):
+        config = self.production_config()
+        self.assertEqual(config.worker_load_timeout, 3600)
+
     def test_chat_tokens(self):
         p=chat_prompt("Hello","Be concise")
         self.assertIn("<|turn>system",p)
