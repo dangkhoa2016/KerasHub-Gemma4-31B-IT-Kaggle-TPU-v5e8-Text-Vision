@@ -4,7 +4,7 @@
   TPU devices. Other accelerators are not covered by the same qualification.
 - Audio generation is not implemented.
 - Hot latency depends on request shape, generation bucket, cache state and
-  compilation-cache reuse. The measured 5.24-second hot request is not a
+  compilation-cache reuse. The measured 5.768-second identical hot request is not a
   universal SLA.
 - The first model load and first compile can take many minutes.
 - The in-memory job store is intentionally process-local and not a durable

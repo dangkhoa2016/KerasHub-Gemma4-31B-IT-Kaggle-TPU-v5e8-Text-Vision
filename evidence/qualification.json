@@ -1,11 +1,12 @@
 {
+  "qualification_source_ref": "v1.0.0",
   "model": "gemma4_instruct_31b",
   "backend": "jax",
   "keras": "3.15.1",
-  "keras_hub": "0.31.1",
+  "keras_hub": "0.32.0",
   "jax": "0.10.2",
   "jaxlib": "0.10.2",
-  "libtpu": "0.0.17",
+  "libtpu": "0.0.49",
   "accelerator": "Kaggle TPU v5e-8",
   "tpu_devices": 8,
   "mesh": [
@@ -21,12 +22,13 @@
     "model_load_count": 1,
     "same_model_object": true,
     "same_output": true,
-    "warm_seconds": 541.409262515,
-    "hot_identical_seconds": 5.239080924,
-    "warm_to_hot_speedup": 103.340503873,
+    "warm_seconds": 38.65196778700192,
+    "hot_identical_seconds": 5.7676155750014,
+    "warm_to_hot_speedup": 6.701550629437111,
     "hot_compile_attempt_count": 0,
     "hot_compile_event_count": 0,
-    "new_oom_events": 0
+    "new_oom_events": 0,
+    "new_oom_kill_events": 0
   },
   "notes": [
     "Measurements describe the qualified request and runtime.",
